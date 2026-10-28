@@ -56,13 +56,17 @@ export function nearestColourName(rgb: Rgb): string {
   return best[0];
 }
 
-/** Nearest colour names, numbered when several colours share a name ("niebieski", "niebieski 2"). */
-export function defaultLabels(colours: Rgb[]): string[] {
-  const seen = new Map<string, number>();
+/**
+ * Nearest colour names, numbered when several colours share a name ("niebieski", "niebieski 2").
+ * Labels in `taken` are already in use and won't be repeated.
+ */
+export function defaultLabels(colours: Rgb[], taken: string[] = []): string[] {
+  const used = new Set(taken);
   return colours.map((rgb) => {
     const name = nearestColourName(rgb);
-    const count = (seen.get(name) ?? 0) + 1;
-    seen.set(name, count);
-    return count === 1 ? name : `${name} ${count}`;
+    let label = name;
+    for (let n = 2; used.has(label); n++) label = `${name} ${n}`;
+    used.add(label);
+    return label;
   });
 }

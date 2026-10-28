@@ -32,6 +32,10 @@ _Avoid_: Colour name, tag
 Folding one bead colour into another so every bead of the first becomes the second.
 _Avoid_: Replace, quantise
 
+**Colour Reduction**:
+Lowering the number of bead colours by repeatedly merging the most similar ones, preferring merges that change the fewest beads; the more-used colour survives each merge.
+_Avoid_: Quantisation, simplification, posterisation
+
 **Same Pattern**:
 Two patterns are the same when their dimensions and bead grids (including exact colours) are identical; name and labels do not matter.
 _Avoid_: Identical pattern, duplicate

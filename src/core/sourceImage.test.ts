@@ -26,7 +26,6 @@ describe('patternFromPixels', () => {
       { r: 255, g: 0, b: 0 },
     ]);
     expect(result.pattern.beads).toEqual([1, 0, 0, 0, 0, 1]);
-    expect(result.pattern.palette.map((c) => c.label)).toEqual(['niebieski', 'czerwony']);
   });
 
   it('rejects transparent pixels', () => {
@@ -46,12 +45,12 @@ describe('patternFromPixels', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects more than 32 colours', () => {
-    const row: Px[] = Array.from({ length: 33 }, (_, i) => [i, 0, 0]);
+  it('keeps every colour, however many', () => {
+    const row: Px[] = Array.from({ length: 40 }, (_, i) => [i * 6, 0, 0]);
     const { width, height, rgba } = pixels([row]);
     const result = patternFromPixels(width, height, rgba, 'Wzór');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/32/);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.pattern.palette).toHaveLength(40);
   });
 });
 
@@ -68,5 +67,9 @@ describe('colour names', () => {
       'niebieski 2',
       'biały',
     ]);
+  });
+
+  it('avoids labels already taken', () => {
+    expect(defaultLabels([{ r: 0, g: 0, b: 250 }], ['niebieski'])).toEqual(['niebieski 2']);
   });
 });

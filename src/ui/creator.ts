@@ -1,4 +1,5 @@
 import { decodePattern, encodePattern, PatternLinkError, patternLinkUrl, payloadFromLink } from '../core/codec';
+import { type ColourReducer, createColourReducer, reduceColours } from '../core/colourReduction';
 import {
   flipHorizontal,
   flipVertical,
@@ -18,6 +19,10 @@ import { swatch } from './swatch';
 const numberFormat = new Intl.NumberFormat('pl-PL');
 
 export function renderCreator(root: HTMLElement): () => void {
+  /** Every colour of the source image, with the same rotation/flip as `pattern`. */
+  let base: Pattern | null = null;
+  let reducer: ColourReducer | null = null;
+  let colourCount = 0;
   let pattern: Pattern | null = null;
   let link: string | null = null;
   let linkRequest = 0;
@@ -70,7 +75,7 @@ export function renderCreator(root: HTMLElement): () => void {
       const name = file.name.replace(/\.[^.]+$/, '');
       const result = await readSourceImage(file, name);
       if (!result.ok) return showLoadError(result.error);
-      setPattern(result.pattern);
+      startEditing(result.pattern, createColourReducer(result.pattern));
     } catch {
       showLoadError('Nie udało się odczytać obrazu. Spróbuj pliku PNG.');
     }
@@ -83,10 +88,24 @@ export function renderCreator(root: HTMLElement): () => void {
     try {
       const decoded = await decodePattern(payload);
       linkInput.value = '';
-      setPattern(decoded.pattern);
+      // No automatic cleanup, so the shared pattern opens unchanged.
+      startEditing(decoded.pattern, createColourReducer(decoded.pattern, { cleanup: false }), decoded.pattern);
     } catch (e) {
       showLoadError(e instanceof PatternLinkError ? e.message : 'Nie udało się wczytać wzoru.');
     }
+  }
+
+  function startEditing(newBase: Pattern, newReducer: ColourReducer, initial?: Pattern) {
+    base = newBase;
+    reducer = newReducer;
+    colourCount = initial ? initial.palette.length : newReducer.maxColours;
+    setPattern(initial ?? reduceColours(newBase, newReducer, colourCount));
+  }
+
+  /** Rotation and flips apply to both the base and the edited pattern, so they stay aligned. */
+  function transform(fn: (p: Pattern) => Pattern) {
+    base = fn(base!);
+    setPattern(fn(pattern!));
   }
 
   function setPattern(next: Pattern) {
@@ -127,9 +146,9 @@ export function renderCreator(root: HTMLElement): () => void {
         h(
           'div',
           { class: 'row' },
-          h('button', { class: 'btn', onclick: () => setPattern(rotateClockwise(p)) }, 'Obróć ↻'),
-          h('button', { class: 'btn', onclick: () => setPattern(flipHorizontal(p)) }, 'Odbij ↔'),
-          h('button', { class: 'btn', onclick: () => setPattern(flipVertical(p)) }, 'Odbij ↕'),
+          h('button', { class: 'btn', onclick: () => transform(rotateClockwise) }, 'Obróć ↻'),
+          h('button', { class: 'btn', onclick: () => transform(flipHorizontal) }, 'Odbij ↔'),
+          h('button', { class: 'btn', onclick: () => transform(flipVertical) }, 'Odbij ↕'),
         ),
         tooWide &&
           h(
@@ -140,7 +159,7 @@ export function renderCreator(root: HTMLElement): () => void {
         viewerBox,
         h('p', { class: 'muted small' }, 'Rząd 1 to dolny rząd obrazu.'),
       ),
-      h('section', { class: 'card' }, h('h2', {}, 'Kolory'), paletteList(p)),
+      h('section', { class: 'card' }, h('h2', {}, 'Kolory'), colourCountSlider(), paletteList(p)),
       shareCard(tooWide),
     );
 
@@ -148,6 +167,37 @@ export function renderCreator(root: HTMLElement): () => void {
     viewer = new PatternViewer(viewerBox, p, { fit: 'contain' });
     viewer.setState(null);
     editor.hidden = false;
+  }
+
+  /** Colour Reduction control; recalculates from all source colours when released. */
+  function colourCountSlider() {
+    if (!base || !reducer || reducer.maxColours <= reducer.minColours) return null;
+    const shown = h('b', {}, String(colourCount));
+    const slider = h('input', {
+      type: 'range',
+      class: 'slider',
+      min: String(reducer.minColours),
+      max: String(reducer.maxColours),
+      step: '1',
+      value: String(colourCount),
+      oninput: () => (shown.textContent = slider.value),
+      onchange: () => {
+        colourCount = Number(slider.value);
+        setPattern(reduceColours(base!, reducer!, colourCount, pattern!));
+      },
+    });
+    const shades = base.palette.length;
+    return h(
+      'div',
+      { class: 'slider-field' },
+      h('label', {}, 'Liczba kolorów: ', shown, slider),
+      shades > reducer.maxColours &&
+        h(
+          'p',
+          { class: 'muted small' },
+          `Obraz ma ${numberFormat.format(shades)} ${plural(shades, 'odcień', 'odcienie', 'odcieni')} — podobne zostały połączone.`,
+        ),
+    );
   }
 
   function paletteList(p: Pattern) {
@@ -181,7 +231,10 @@ export function renderCreator(root: HTMLElement): () => void {
                   `Wszystkie jego koraliki zmienią kolor.`,
                 'Połącz',
               );
-              if (ok) setPattern(mergeColour(current, index, target));
+              if (!ok) return;
+              const merged = mergeColour(current, index, target);
+              colourCount = merged.palette.length;
+              setPattern(merged);
             },
           },
           h('option', { value: '' }, 'Połącz z…'),

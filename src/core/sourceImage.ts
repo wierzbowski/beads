@@ -1,11 +1,11 @@
-import { defaultLabels } from './colourNames';
-import { MAX_COLOURS, MAX_HEIGHT, MAX_WIDTH, type Pattern, type Rgb } from './pattern';
+import { MAX_HEIGHT, MAX_WIDTH, type Pattern, type Rgb } from './pattern';
 
 export type ImportResult = { ok: true; pattern: Pattern } | { ok: false; error: string };
 
 /**
- * Builds a pattern from the RGBA pixels of a source image: one pixel per bead, exact colours,
- * palette ordered from the most used colour.
+ * Builds a base pattern from the RGBA pixels of a source image: one pixel per bead, every exact
+ * colour kept (unlabelled), palette ordered from the most used colour. Colour Reduction turns it
+ * into a shareable pattern.
  *
  * An image that only fits the limits when turned sideways is accepted so it can be rotated in the Creator.
  */
@@ -47,9 +47,6 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
       keyToIndex.set(key, index);
       colours.push({ r, g, b });
       counts.push(0);
-      if (colours.length > MAX_COLOURS) {
-        return { ok: false, error: `Obraz ma więcej niż ${MAX_COLOURS} kolorów.` };
-      }
     }
     counts[index]++;
     raw[i] = index;
@@ -58,8 +55,6 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
   const order = colours.map((_, i) => i).sort((a, b) => counts[b] - counts[a] || a - b);
   const remap = new Array<number>(order.length);
   order.forEach((oldIndex, newIndex) => (remap[oldIndex] = newIndex));
-  const sortedColours = order.map((i) => colours[i]);
-  const labels = defaultLabels(sortedColours);
 
   return {
     ok: true,
@@ -67,7 +62,7 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
       name,
       width,
       height,
-      palette: sortedColours.map((rgb, i) => ({ rgb, label: labels[i] })),
+      palette: order.map((i) => ({ rgb: colours[i], label: '' })),
       beads: raw.map((i) => remap[i]),
     },
   };

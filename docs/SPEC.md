@@ -39,9 +39,18 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - Rejected with a Polish message:
   - any transparent (non-opaque) pixel
   - an image that doesn't fit 50 × 500 in either orientation
-  - more than 32 distinct colours
+- Any number of colours is accepted; Colour Reduction brings it to at most 32 (see below).
 - An image that fits only sideways (e.g. 67 × 17) is loaded so it can be rotated. Sharing stays disabled until the pattern is at most 50 wide and 500 tall.
 - Palette is ordered from the most used colour.
+
+### Colour Reduction
+- Colour similarity is measured perceptually (CIELAB distance), not in raw RGB.
+- On image import, near-identical shades (indistinguishable by eye) are merged automatically.
+- **Liczba kolorów** slider: from 2 (or 1 for a single-colour image) up to the colours left after that cleanup, capped at 32. It defaults to the maximum.
+- Each step merges the pair of colours with the lowest cost, where cost grows with colour distance and with the number of beads that would change. Rare stray colours (e.g. anti-aliasing) go before large, deliberate ones.
+- The more-used colour of a merged pair survives, so every bead colour is an exact colour from the source image (no averaging).
+- The slider always recalculates from the full set of image colours, keeping any rotation/flip. Labels stay attached to colours that survive (matched by exact colour). Manual merges are replaced.
+- A pattern loaded from a link skips the automatic cleanup, so it opens unchanged. The slider can still reduce it.
 
 ### Editing
 - Preview of the pattern drawn as beads.
@@ -103,7 +112,8 @@ Vitest unit tests for the logic:
 - fingerprint stability: unaffected by labels, name, progress and direction; changed by any grid or colour change
 - run computation and row hint ordering for both reading directions
 - merge, rotate and flip
-- PNG validation: transparency, size and colour limits
+- colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
+- PNG validation: transparency and size limits
 - progress rules: done, undo, jump, reset, bounds, and `localStorage` vs link precedence
 
 UI is verified by hand on an Android phone.

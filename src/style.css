@@ -176,6 +176,25 @@ h2 {
   overflow: hidden;
 }
 
+.slider-field {
+  margin-bottom: 1rem;
+}
+
+.slider-field label {
+  display: block;
+}
+
+.slider {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  accent-color: var(--primary);
+}
+
+.slider-field p {
+  margin: 0.3rem 0 0;
+}
+
 .palette {
   list-style: none;
   margin: 0;
