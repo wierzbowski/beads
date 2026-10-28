@@ -13,14 +13,14 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 ## Pattern Link
 
 - Form: `https://wierzbowski.github.io/beads/#p=<payload>`. A link with no `#p=` opens the Creator.
-- Payload: binary, compressed with `deflate-raw` (`CompressionStream`), then base64url. Fields in order:
-  1. format version (1 byte)
-  2. width, height
-  3. palette: count, then per bead colour: RGB + label (UTF-8)
-  4. pattern name (UTF-8)
-  5. progress (number of done rows)
-  6. reading direction (left→right / right→left)
-  7. bead grid: palette indices, bit-packed at `ceil(log2(paletteSize))` bits per bead, row by row
+- Payload: a format version byte, followed by a body compressed with `deflate-raw` (`CompressionStream`), all encoded as base64url. The version byte stays uncompressed so a future version may change compression too. Body fields in order:
+  1. width, height
+  2. palette: count, then per bead colour: RGB + label (UTF-8)
+  3. pattern name (UTF-8)
+  4. progress (number of done rows)
+  5. reading direction (left→right / right→left)
+  6. bead grid: palette indices, bit-packed at `ceil(log2(paletteSize))` bits per bead, row by row
+- The exact byte layout is documented in `src/core/codec.ts`.
 - Decoders must accept every format version ever released (ADR-0003).
 - An invalid or corrupted payload shows a clear Polish error instead of a broken view.
 
@@ -38,8 +38,10 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - Each pixel becomes one bead, using exact colours. One image row is one pattern row. Row 1 is the bottom image row.
 - Rejected with a Polish message:
   - any transparent (non-opaque) pixel
-  - width > 50 or height > 500
+  - an image that doesn't fit 50 × 500 in either orientation
   - more than 32 distinct colours
+- An image that fits only sideways (e.g. 67 × 17) is loaded so it can be rotated. Sharing stays disabled until the pattern is at most 50 wide and 500 tall.
+- Palette is ordered from the most used colour.
 
 ### Editing
 - Preview of the pattern drawn as beads.
@@ -63,7 +65,8 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 
 ### Pattern viewer
 - Aligned loom grid (no offset). Beads are rounded rectangles, slightly taller than wide (Delica-like). White and very light beads get a thin outline.
-- Own pinch-zoom and drag-to-pan. Native page zoom does not zoom the controls.
+- Own pinch-zoom and drag-to-pan (mouse wheel zooms on desktop). Native page zoom does not zoom the controls.
+- Initially fills the screen width, with beads capped at a comfortable size on wide screens.
 - Done rows are dimmed, and the current row is outlined. Row numbers run along the side.
 - Auto-scrolls to keep the current row in view after it changes.
 - A small arrow on the current row shows the reading direction.
