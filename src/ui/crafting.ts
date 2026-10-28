@@ -43,7 +43,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
   const hintChips = h('div', { class: 'chips' });
   const nextHint = h('div', { class: 'next-hint' });
   const undoButton = h('button', { class: 'btn', onclick: onUndo }, 'Cofnij');
-  const doneButton = h('button', { class: 'btn btn-primary btn-done', onclick: onDone }, 'Gotowe');
+  const doneButton = h('button', { class: 'btn btn-primary btn-done', onclick: onDone }, 'Następny rządek');
   const menuButton = h('button', { class: 'btn btn-menu', ariaLabel: 'Więcej opcji', onclick: openMenu }, '⋯');
   const viewerBox = h('div', { class: 'viewer' });
 

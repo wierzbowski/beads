@@ -81,7 +81,7 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - Below it, a smaller greyed preview of the next row's hint (if any).
 
 ### Controls
-- **Gotowe**: marks the current row done.
+- **Następny rządek**: marks the current row done.
   - A second tap within 600 ms is ignored.
   - Each accepted tap vibrates briefly (`navigator.vibrate`, if available).
 - **Cofnij**: moves progress back one row. Disabled at 0.
