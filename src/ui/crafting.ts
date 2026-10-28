@@ -96,7 +96,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
       nextHint.replaceChildren();
     } else {
       hintTitle.replaceChildren(
-        `Rząd ${current} / ${total} `,
+        `Rząd ${current} / ${total} (liczba kolumn: ${pattern.width}) `,
         h('span', { class: 'direction', title: DIRECTION_LABEL[state.direction] }, DIRECTION_ARROW[state.direction]),
       );
       hintChips.replaceChildren(...rowHint(pattern, current, state.direction).map((r) => runChip(r, pattern.palette)));

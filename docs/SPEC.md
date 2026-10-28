@@ -76,7 +76,7 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - Shows `done / total` rows and a percentage with one decimal, e.g. `12 / 67 · 17,9%` (Polish decimal comma).
 
 ### Row hint
-- `Rząd N / total` for the current row.
+- `Rząd N / total (liczba kolumn: W)` for the current row, where W is the pattern width.
 - Ordered runs as chips: swatch + count + label, in the reading direction.
 - Below it, a smaller greyed preview of the next row's hint (if any).
 
