@@ -38,7 +38,12 @@ export function renderCreator(root: HTMLElement): () => void {
   const screen = h(
     'div',
     { class: 'creator' },
-    h('h1', {}, 'Kreator wzoru'),
+    h(
+      'header',
+      { class: 'page-header' },
+      h('h1', {}, 'Kreator wzoru'),
+      h('a', { class: 'btn', href: import.meta.env.BASE_URL }, 'Galeria'),
+    ),
     h(
       'section',
       { class: 'card' },

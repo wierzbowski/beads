@@ -154,9 +154,10 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
   }
 
   async function openMenu() {
-    const choice = await showDialog<'direction' | 'totals' | 'reset' | null>(
+    const choice = await showDialog<'gallery' | 'direction' | 'totals' | 'reset' | null>(
       [h('h2', {}, 'Opcje')],
       [
+        { label: 'Galeria', value: 'gallery' },
         { label: `Kierunek czytania: ${DIRECTION_LABEL[state.direction]} — zmień`, value: 'direction' },
         { label: 'Podsumowanie kolorów', value: 'totals' },
         { label: 'Resetuj postęp', value: 'reset', danger: true },
@@ -164,7 +165,9 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
       ],
       null,
     );
-    if (choice === 'direction') {
+    if (choice === 'gallery') {
+      location.href = import.meta.env.BASE_URL;
+    } else if (choice === 'direction') {
       update(toggleDirection(state));
     } else if (choice === 'totals') {
       showTotals();

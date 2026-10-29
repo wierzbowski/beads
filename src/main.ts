@@ -3,6 +3,7 @@ import { decodePattern, PatternLinkError, payloadFromLink } from './core/codec';
 import { renderCrafting } from './ui/crafting';
 import { renderCreator } from './ui/creator';
 import { h } from './ui/dom';
+import { renderGallery } from './ui/gallery';
 
 const app = document.getElementById('app')!;
 let cleanup: (() => void) | null = null;
@@ -13,7 +14,7 @@ async function route() {
   const payload = payloadFromLink(location.hash);
 
   if (!payload) {
-    show(() => renderCreator(app));
+    show(() => (location.hash === '#kreator' ? renderCreator(app) : renderGallery(app)));
     return;
   }
 
@@ -44,7 +45,7 @@ function renderLinkError(message: string): () => void {
       { class: 'card' },
       h('p', { class: 'error' }, message),
       h('p', { class: 'muted' }, 'Sprawdź, czy link został skopiowany w całości.'),
-      h('a', { class: 'btn', href: import.meta.env.BASE_URL }, 'Przejdź do kreatora'),
+      h('a', { class: 'btn', href: '#kreator' }, 'Przejdź do kreatora'),
     ),
   );
   app.appendChild(screen);

@@ -2,11 +2,11 @@ import { luminance, rgbToHex, type Pattern } from '../core/pattern';
 import type { CraftState } from '../core/progress';
 
 // World units; beads are slightly taller than wide, like Delicas on a loom.
-const BEAD_W = 10;
-const BEAD_H = 12;
-const GAP = 1.5;
-const CELL_W = BEAD_W + GAP;
-const CELL_H = BEAD_H + GAP;
+export const BEAD_W = 10;
+export const BEAD_H = 12;
+export const GAP = 1.5;
+export const CELL_W = BEAD_W + GAP;
+export const CELL_H = BEAD_H + GAP;
 const LABEL_W = 26;
 const ARROW_W = 14;
 const PAD = 8;
@@ -14,7 +14,7 @@ const PAD = 8;
 const BACKGROUND = '#e9e8e5';
 const TEXT = '#55524c';
 const CURRENT = '#1f2937';
-const LIGHT_OUTLINE = '#a8a39a';
+export const LIGHT_OUTLINE = '#a8a39a';
 const MAX_FIT_BEAD_PX = 40;
 const TAP_SLOP = 8;
 const TAP_MAX_MS = 500;
