@@ -87,3 +87,7 @@ _Avoid_: Player, viewer, tracker
 **Pattern Link**:
 A shareable address that fully contains a pattern and, optionally, its progress and reading direction.
 _Avoid_: URL, share code
+
+**Gallery**:
+The published, hand-picked list of pattern links, shown as previews that can be searched by pattern name. It is the app's home page.
+_Avoid_: Library, collection, history, favourites

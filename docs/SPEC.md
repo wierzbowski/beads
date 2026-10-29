@@ -10,9 +10,17 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - UI language: Polish only. Light theme only, neutral light-grey background.
 - Plain website, not a PWA. No server, no accounts.
 
+## Routes
+
+All routing uses the URL hash, so GitHub Pages only ever serves `index.html`.
+
+- `#p=<payload>`: Crafting View for that pattern.
+- `#kreator`: Creator.
+- No hash, or any other hash: Gallery (the home page).
+
 ## Pattern Link
 
-- Form: `https://wierzbowski.github.io/beads/#p=<payload>`. A link with no `#p=` opens the Creator.
+- Form: `https://wierzbowski.github.io/beads/#p=<payload>`.
 - Payload: a format version byte, followed by a body compressed with `deflate-raw` (`CompressionStream`), all encoded as base64url. The version byte stays uncompressed so a future version may change compression too. Body fields in order:
   1. width, height
   2. palette: count, then per bead colour: RGB + label (UTF-8)
@@ -22,7 +30,7 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
   6. bead grid: palette indices, bit-packed at `ceil(log2(paletteSize))` bits per bead, row by row
 - The exact byte layout is documented in `src/core/codec.ts`.
 - Decoders must accept every format version ever released (ADR-0003).
-- An invalid or corrupted payload shows a clear Polish error instead of a broken view.
+- An invalid or corrupted payload shows a clear Polish error instead of a broken view, with a link to the Creator (`#kreator`).
 
 ## Same Pattern and saved state
 
@@ -31,7 +39,33 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
 - On open: if `localStorage` has state for this fingerprint, it wins; otherwise the link's progress and direction are used (ADR-0002).
 - Every change to progress or direction updates both `localStorage` and the address bar (`history.replaceState`), so the current URL always reflects the latest state.
 
+## Gallery
+
+### Source
+- A hand-maintained list of pattern links in `src/gallery.ts`, bundled at build time (ADR-0004).
+- An entry is only the link; name, size and preview are decoded from it.
+- Shown in file order; new patterns go at the top.
+- Duplicates are not detected. A corrected pattern replaces its old line.
+
+### Layout
+- Search field at the top: filters by pattern name, case- and diacritic-insensitive substring (`zolw` finds `Żółw`), updated as you type.
+- Grid of tiles: 2 columns on a phone, as many as fit on wider screens.
+- Each tile:
+  - Preview drawn live from the decoded pattern, scaled to fit a fixed-height box and centred, so tall and wide patterns line up.
+  - Pattern name.
+  - Size, e.g. `17 × 67`.
+  - Progress saved on this device, if any: `done / total` with a thin bar, or **Ukończony** when finished. Nothing for patterns never started.
+- Tapping a tile opens its pattern link as a normal navigation, so Back returns to the Gallery. Saved progress still wins over the link's (ADR-0002).
+- Footer: a small, unobtrusive **Kreator** link.
+
+### Edge cases
+- Empty list: **Brak wzorów w galerii.**
+- No search matches: **Nie znaleziono wzorów.**
+- A link that fails to decode is skipped silently (the unit test should catch it first).
+
 ## Creator
+
+- Reached at `#kreator`. The header has a **Galeria** link back to the Gallery.
 
 ### Input
 - A PNG file, or a pasted Pattern Link to edit an existing pattern.
@@ -95,6 +129,7 @@ Vocabulary follows [GLOSSARY.md](../GLOSSARY.md). Architectural decisions are in
   - Each accepted tap vibrates briefly (`navigator.vibrate`, if available).
 - **Cofnij**: moves progress back one row. Disabled at 0.
 - **⋯ menu**:
+  - **Galeria**: opens the Gallery.
   - **Kierunek czytania**: toggles left→right / right→left for this pattern.
   - **Podsumowanie kolorów**: per bead colour, beads needed in total and beads remaining.
   - **Resetuj postęp**: sets progress to 0 after confirmation.
@@ -115,5 +150,7 @@ Vitest unit tests for the logic:
 - colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
 - PNG validation: transparency and size limits
 - progress rules: done, undo, jump, reset, bounds, and `localStorage` vs link precedence
+- every Gallery link decodes successfully
+- Gallery search: case- and diacritic-insensitive name matching
 
 UI is verified by hand on an Android phone.
