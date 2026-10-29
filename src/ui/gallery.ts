@@ -1,19 +1,24 @@
-import { decodePattern, payloadFromLink } from '../core/codec';
+import { decodePattern } from '../core/codec';
 import { fingerprint } from '../core/fingerprint';
-import { matchesName } from '../core/nameSearch';
+import { compareNames, matchesName } from '../core/nameSearch';
 import type { Pattern } from '../core/pattern';
 import { localStateStore } from '../core/progress';
-import { galleryLinks } from '../gallery';
+import { galleryPatterns } from '../gallery';
 import { h } from './dom';
 import { patternThumbnail } from './patternThumbnail';
 
 interface GalleryEntry {
+  /** The Gallery's name for the pattern, which may differ from the name inside the payload. */
+  name: string;
   payload: string;
   pattern: Pattern;
 }
 
-/** Kept across visits, so going Back from a pattern keeps the search. */
+type SortOrder = 'gallery' | 'name';
+
+/** Kept across visits, so going Back from a pattern keeps the search and order. */
 let lastQuery = '';
+let lastOrder: SortOrder = 'gallery';
 
 export function renderGallery(root: HTMLElement): () => void {
   let active = true;
@@ -30,6 +35,20 @@ export function renderGallery(root: HTMLElement): () => void {
       applyFilter();
     },
   });
+  const order = h(
+    'select',
+    {
+      class: 'input gallery-order',
+      ariaLabel: 'Kolejność',
+      onchange: () => {
+        lastOrder = order.value as SortOrder;
+        applyOrder();
+      },
+    },
+    h('option', { value: 'gallery' }, 'Kolejność galerii'),
+    h('option', { value: 'name' }, 'Alfabetycznie'),
+  );
+  order.value = lastOrder;
   const grid = h('div', { class: 'gallery-grid' });
   const message = h('p', { class: 'muted gallery-message', hidden: true });
 
@@ -37,13 +56,14 @@ export function renderGallery(root: HTMLElement): () => void {
     'div',
     { class: 'gallery' },
     h('h1', {}, 'Galeria wzorów'),
-    search,
+    h('div', { class: 'gallery-controls' }, search, order),
     grid,
     message,
     h('footer', { class: 'gallery-footer' }, h('a', { class: 'muted small', href: '#kreator' }, 'Kreator')),
   );
   root.appendChild(screen);
 
+  /** In gallery order. */
   const tiles: { name: string; element: HTMLElement }[] = [];
 
   function applyFilter() {
@@ -56,14 +76,19 @@ export function renderGallery(root: HTMLElement): () => void {
     message.textContent = tiles.length === 0 ? 'Brak wzorów w galerii.' : 'Nie znaleziono wzorów.';
   }
 
+  function applyOrder() {
+    const sorted = order.value === 'name' ? [...tiles].sort((a, b) => compareNames(a.name, b.name)) : tiles;
+    grid.replaceChildren(...sorted.map((t) => t.element));
+  }
+
   loadEntries().then((entries) => {
     if (!active) return;
     const store = localStateStore(window.localStorage);
     for (const entry of entries) {
       const element = galleryTile(entry, store.load(fingerprint(entry.pattern))?.progress ?? 0);
-      tiles.push({ name: entry.pattern.name, element });
-      grid.appendChild(element);
+      tiles.push({ name: entry.name, element });
     }
+    applyOrder();
     applyFilter();
   });
 
@@ -73,25 +98,25 @@ export function renderGallery(root: HTMLElement): () => void {
   };
 }
 
-/** Decodes every gallery link in file order; links that fail to decode are skipped. */
+/** Decodes every gallery pattern in gallery order; payloads that fail to decode are skipped. */
 async function loadEntries(): Promise<GalleryEntry[]> {
   const results = await Promise.allSettled(
-    galleryLinks.map(async (link) => {
-      const payload = payloadFromLink(link);
-      if (!payload) throw new Error('No payload');
-      return { payload, pattern: (await decodePattern(payload)).pattern };
-    }),
+    Object.entries(galleryPatterns).map(async ([name, payload]) => ({
+      name,
+      payload,
+      pattern: (await decodePattern(payload)).pattern,
+    })),
   );
   return results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
 }
 
-function galleryTile({ payload, pattern }: GalleryEntry, progress: number) {
+function galleryTile({ name, payload, pattern }: GalleryEntry, progress: number) {
   const total = pattern.height;
   return h(
     'a',
     { class: 'tile', href: `#p=${payload}` },
     h('div', { class: 'tile-preview' }, patternThumbnail(pattern)),
-    h('div', { class: 'tile-name' }, pattern.name || 'Bez nazwy'),
+    h('div', { class: 'tile-name' }, name),
     h('div', { class: 'muted small' }, `${pattern.width} × ${pattern.height}`),
     progress > 0 && tileProgress(progress, total),
   );

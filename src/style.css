@@ -263,10 +263,19 @@ h2 {
   padding: 1rem;
 }
 
-.gallery-search {
-  width: 100%;
-  min-height: 44px;
+.gallery-controls {
+  display: flex;
+  gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+.gallery-search {
+  flex: 1;
+  min-height: 44px;
+}
+
+.gallery-order {
+  min-height: 44px;
 }
 
 .gallery-grid {
@@ -361,11 +370,22 @@ h2 {
 }
 
 .crafting-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem 1rem;
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
 
+.btn-back {
+  flex: none;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  font-size: 0.9rem;
+}
+
 .crafting-header h1 {
+  min-width: 0;
   margin: 0;
   font-size: 1.05rem;
   white-space: nowrap;

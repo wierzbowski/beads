@@ -89,5 +89,5 @@ A shareable address that fully contains a pattern and, optionally, its progress 
 _Avoid_: URL, share code
 
 **Gallery**:
-The published, hand-picked list of pattern links, shown as previews that can be searched by pattern name. It is the app's home page.
+The published, hand-picked list of named patterns, shown as previews that can be searched and sorted by name. It is the app's home page.
 _Avoid_: Library, collection, history, favourites

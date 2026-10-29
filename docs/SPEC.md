@@ -42,26 +42,27 @@ All routing uses the URL hash, so GitHub Pages only ever serves `index.html`.
 ## Gallery
 
 ### Source
-- A hand-maintained list of pattern links in `src/gallery.ts`, bundled at build time (ADR-0004).
-- An entry is only the link; name, size and preview are decoded from it.
-- Shown in file order; new patterns go at the top.
-- Duplicates are not detected. A corrected pattern replaces its old line.
+- A hand-maintained map in `src/gallery.ts`, bundled at build time (ADR-0004): `{ "<gallery name>": "<payload>" }`, where the payload is the part of a pattern link after `#p=`.
+- The gallery name is the key, not the name inside the payload; size and preview are decoded from the payload.
+- Gallery order is file order; new patterns go at the top.
+- Duplicates are not detected. A corrected pattern replaces its old payload.
 
 ### Layout
-- Search field at the top: filters by pattern name, case- and diacritic-insensitive substring (`zolw` finds `Żółw`), updated as you type.
+- Search field at the top: filters by gallery name, case- and diacritic-insensitive substring (`zolw` finds `Żółw`), updated as you type.
+- Order picker beside it: **Kolejność galerii** (default) or **Alfabetycznie** (Polish alphabetical order, numbers by value, so `wzór_2` comes before `wzór_10`). Search and order are kept when coming Back to the Gallery.
 - Grid of tiles: 2 columns on a phone, as many as fit on wider screens.
 - Each tile:
   - Preview drawn live from the decoded pattern, scaled to fit a fixed-height box and centred, so tall and wide patterns line up.
-  - Pattern name.
+  - Gallery name.
   - Size, e.g. `17 × 67`.
   - Progress saved on this device, if any: `done / total` with a thin bar, or **Ukończony** when finished. Nothing for patterns never started.
-- Tapping a tile opens its pattern link as a normal navigation, so Back returns to the Gallery. Saved progress still wins over the link's (ADR-0002).
+- Tapping a tile opens `#p=<payload>` as a normal navigation, so Back returns to the Gallery. Saved progress still wins over the link's (ADR-0002).
 - Footer: a small, unobtrusive **Kreator** link.
 
 ### Edge cases
 - Empty list: **Brak wzorów w galerii.**
 - No search matches: **Nie znaleziono wzorów.**
-- A link that fails to decode is skipped silently (the unit test should catch it first).
+- A payload that fails to decode is skipped silently (the unit test should catch it first).
 
 ## Creator
 
@@ -102,7 +103,7 @@ All routing uses the URL hash, so GitHub Pages only ever serves `index.html`.
 ## Crafting View
 
 ### Layout
-- Header: pattern name.
+- Header: a **‹ Galeria** link in the top-left corner, then the pattern name (from the link).
 - Pattern viewer fills the top part of the screen.
 - A fixed bottom panel holds the progress bar, the row hint and the controls, within thumb reach.
 
@@ -129,7 +130,6 @@ All routing uses the URL hash, so GitHub Pages only ever serves `index.html`.
   - Each accepted tap vibrates briefly (`navigator.vibrate`, if available).
 - **Cofnij**: moves progress back one row. Disabled at 0.
 - **⋯ menu**:
-  - **Galeria**: opens the Gallery.
   - **Kierunek czytania**: toggles left→right / right→left for this pattern.
   - **Podsumowanie kolorów**: per bead colour, beads needed in total and beads remaining.
   - **Resetuj postęp**: sets progress to 0 after confirmation.
@@ -150,7 +150,8 @@ Vitest unit tests for the logic:
 - colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
 - PNG validation: transparency and size limits
 - progress rules: done, undo, jump, reset, bounds, and `localStorage` vs link precedence
-- every Gallery link decodes successfully
+- every Gallery payload decodes successfully
 - Gallery search: case- and diacritic-insensitive name matching
+- Gallery alphabetical order: Polish letters in place, numbers by value
 
 UI is verified by hand on an Android phone.
