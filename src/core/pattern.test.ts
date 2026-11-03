@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  colourLetter,
   colourTotals,
   flipHorizontal,
   flipVertical,
@@ -47,6 +48,23 @@ describe('runs and row hint', () => {
 
   it('handles a single-colour row', () => {
     expect(labelled(2, 'ltr')).toEqual(['5B']);
+  });
+});
+
+describe('colour letters', () => {
+  it('runs A to Z, then continues with AA', () => {
+    expect([0, 1, 25, 26, 27, 31, 51, 52, 701, 702].map(colourLetter)).toEqual([
+      'A',
+      'B',
+      'Z',
+      'AA',
+      'AB',
+      'AF',
+      'AZ',
+      'BA',
+      'ZZ',
+      'AAA',
+    ]);
   });
 });
 

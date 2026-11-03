@@ -151,12 +151,17 @@ Shown above the editor, only for Image Import.
 - A small arrow on the current row shows the reading direction.
 - Tapping a row asks for confirmation, then sets progress so that row becomes the current row.
 
+### Colour letters
+- Each bead colour gets a letter from its palette position, in spreadsheet-column style: A–Z, then AA, AB, … (with at most 32 colours, the last is AF).
+- Palette order is stored in the link, so a pattern's letters never change while weaving it. Merging colours in the Creator can shift the letters of later colours.
+- Letters are not stored in the link; they always follow from the palette order.
+
 ### Progress bar
 - Shows `done / total` rows and a percentage with one decimal, e.g. `12 / 67 · 17,9%` (Polish decimal comma).
 
 ### Row hint
 - `Rząd N / total (liczba kolumn: W)` for the current row, where W is the pattern width.
-- Ordered runs as chips: swatch + count + label, in the reading direction.
+- Ordered runs as chips: swatch + count + colour letter + label in brackets, in the reading direction, e.g. `3× A (jasnoróżowy)`.
 - Below it, a smaller greyed preview of the next row's hint (if any).
 
 ### Controls
@@ -166,7 +171,7 @@ Shown above the editor, only for Image Import.
 - **Cofnij**: moves progress back one row. Disabled at 0.
 - **⋯ menu**:
   - **Kierunek czytania**: toggles left→right / right→left for this pattern.
-  - **Podsumowanie kolorów**: per bead colour, beads needed in total and beads remaining.
+  - **Podsumowanie kolorów**: per bead colour (swatch, colour letter, label), beads needed in total and beads remaining.
   - **Resetuj postęp**: sets progress to 0 after confirmation.
 
 ### Completion
@@ -181,6 +186,7 @@ Vitest unit tests for the logic:
 - encode/decode round-trip, including version handling and invalid input
 - fingerprint stability: unaffected by labels, name, progress and direction; changed by any grid or colour change
 - run computation and row hint ordering for both reading directions
+- colour letters: A–Z, then AA onwards
 - merge, rotate and flip
 - colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
 - PNG validation: transparency and size limits

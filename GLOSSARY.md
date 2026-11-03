@@ -48,6 +48,10 @@ _Avoid_: Colour index, shade
 The human name shown for a bead colour, such as a plain colour word or a Miyuki catalogue code.
 _Avoid_: Colour name, tag
 
+**Colour Letter** (*Litera*):
+A short code for a bead colour taken from its position in the palette, in spreadsheet-column style: A, B, … Z, then AA, AB, … The crafter writes it on the box holding those beads.
+_Avoid_: Code, ID, index
+
 **Merge**:
 Folding one bead colour into another so every bead of the first becomes the second.
 _Avoid_: Replace, quantise
@@ -75,7 +79,7 @@ A row the crafter has marked as finished.
 _Avoid_: Completed line
 
 **Run**:
-A maximal sequence of adjacent beads of the same colour within a row, expressed as a count and a bead colour (e.g. "3 × red").
+A maximal sequence of adjacent beads of the same colour within a row, expressed as a count and a bead colour (e.g. "3 × A (red)").
 _Avoid_: Group, segment, block
 
 **Row Hint**:

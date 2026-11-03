@@ -1,6 +1,6 @@
 import { encodePattern, type DecodedLink } from '../core/codec';
 import { fingerprint } from '../core/fingerprint';
-import { colourTotals, rowHint } from '../core/pattern';
+import { colourLetter, colourTotals, rowHint } from '../core/pattern';
 import {
   type CraftState,
   jumpToRow,
@@ -186,6 +186,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
         'tr',
         {},
         h('td', {}, swatch(colour)),
+        h('td', {}, h('b', {}, colourLetter(t.colour))),
         h('td', {}, colour.label),
         h('td', { class: 'num' }, numberFormat.format(t.remaining)),
         h('td', { class: 'num muted' }, numberFormat.format(t.total)),
@@ -200,7 +201,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
           h(
             'thead',
             {},
-            h('tr', {}, h('th', {}), h('th', {}, 'Kolor'), h('th', { class: 'num' }, 'Zostało'), h('th', { class: 'num' }, 'Razem')),
+            h('tr', {}, h('th', {}), h('th', {}, 'Litera'), h('th', {}, 'Kolor'), h('th', { class: 'num' }, 'Zostało'), h('th', { class: 'num' }, 'Razem')),
           ),
           h('tbody', {}, ...rows),
         ),

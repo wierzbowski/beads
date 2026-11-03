@@ -63,6 +63,15 @@ export function runs(beads: number[]): Run[] {
   return result;
 }
 
+/** Colour Letter for a palette index, in spreadsheet-column style: 0 → A, 25 → Z, 26 → AA. */
+export function colourLetter(index: number): string {
+  let letter = '';
+  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    letter = String.fromCharCode(65 + ((n - 1) % 26)) + letter;
+  }
+  return letter;
+}
+
 export function rowHint(pattern: Pattern, row: number, direction: ReadingDirection): Run[] {
   const beads = rowBeads(pattern, row);
   if (direction === 'rtl') beads.reverse();

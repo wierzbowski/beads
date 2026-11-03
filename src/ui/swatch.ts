@@ -1,4 +1,4 @@
-import { luminance, rgbToHex, type BeadColour, type Run } from '../core/pattern';
+import { colourLetter, luminance, rgbToHex, type BeadColour, type Run } from '../core/pattern';
 import { h } from './dom';
 
 export function swatch(colour: BeadColour) {
@@ -8,8 +8,14 @@ export function swatch(colour: BeadColour) {
   });
 }
 
-/** One run of a Row Hint: swatch, count and label. */
+/** One run of a Row Hint: swatch, count, colour letter and label. */
 export function runChip(run: Run, palette: BeadColour[]) {
   const colour = palette[run.colour];
-  return h('span', { class: 'chip' }, swatch(colour), h('b', {}, `${run.count}×`), colour.label);
+  return h(
+    'span',
+    { class: 'chip' },
+    swatch(colour),
+    h('b', {}, `${run.count}× ${colourLetter(run.colour)}`),
+    `(${colour.label})`,
+  );
 }
