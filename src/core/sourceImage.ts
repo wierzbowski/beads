@@ -1,11 +1,9 @@
-import { MAX_HEIGHT, MAX_WIDTH, type Pattern, type Rgb } from './pattern';
+import { fitsSomeOrientation, MAX_HEIGHT, MAX_WIDTH, type Pattern, type Rgb } from './pattern';
 
 export type ImportResult = { ok: true; pattern: Pattern } | { ok: false; error: string };
 
 /**
- * Builds a base pattern from the RGBA pixels of a source image: one pixel per bead, every exact
- * colour kept (unlabelled), palette ordered from the most used colour. Colour Reduction turns it
- * into a shareable pattern.
+ * Pixel Import: builds a base pattern from the RGBA pixels of a source image, one pixel per bead.
  *
  * An image that only fits the limits when turned sideways is accepted so it can be rotated in the Creator.
  */
@@ -13,20 +11,14 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
   if (width < 1 || height < 1) {
     return { ok: false, error: 'Obraz jest pusty.' };
   }
-  const fitsUpright = width <= MAX_WIDTH && height <= MAX_HEIGHT;
-  const fitsSideways = height <= MAX_WIDTH && width <= MAX_HEIGHT;
-  if (!fitsUpright && !fitsSideways) {
+  if (!fitsSomeOrientation({ width, height })) {
     return {
       ok: false,
       error: `Obraz ma ${width} × ${height} px. Maksymalny rozmiar wzoru to ${MAX_WIDTH} × ${MAX_HEIGHT} px.`,
     };
   }
 
-  const keyToIndex = new Map<number, number>();
-  const colours: Rgb[] = [];
-  const counts: number[] = [];
-  const raw = new Array<number>(width * height);
-
+  const keys = new Array<number>(width * height);
   for (let i = 0; i < width * height; i++) {
     const r = rgba[i * 4];
     const g = rgba[i * 4 + 1];
@@ -40,12 +32,30 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
         error: `Obraz zawiera przezroczyste piksele (np. kolumna ${x + 1}, wiersz ${y + 1} od góry). Każdy piksel musi mieć pełny kolor.`,
       };
     }
-    const key = (r << 16) | (g << 8) | b;
+    keys[i] = (r << 16) | (g << 8) | b;
+  }
+
+  return { ok: true, pattern: patternFromColourKeys(width, height, keys, name) };
+}
+
+/**
+ * Builds a base pattern from the colour of every bead (as 0xRRGGBB, row-major from the top): every exact
+ * colour kept (unlabelled), palette ordered from the most used colour. Colour Reduction turns it into a
+ * shareable pattern.
+ */
+export function patternFromColourKeys(width: number, height: number, keys: ArrayLike<number>, name: string): Pattern {
+  const keyToIndex = new Map<number, number>();
+  const colours: Rgb[] = [];
+  const counts: number[] = [];
+  const raw = new Array<number>(keys.length);
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
     let index = keyToIndex.get(key);
     if (index === undefined) {
       index = colours.length;
       keyToIndex.set(key, index);
-      colours.push({ r, g, b });
+      colours.push({ r: key >> 16, g: (key >> 8) & 255, b: key & 255 });
       counts.push(0);
     }
     counts[index]++;
@@ -57,13 +67,10 @@ export function patternFromPixels(width: number, height: number, rgba: ArrayLike
   order.forEach((oldIndex, newIndex) => (remap[oldIndex] = newIndex));
 
   return {
-    ok: true,
-    pattern: {
-      name,
-      width,
-      height,
-      palette: order.map((i) => ({ rgb: colours[i], label: '' })),
-      beads: raw.map((i) => remap[i]),
-    },
+    name,
+    width,
+    height,
+    palette: order.map((i) => ({ rgb: colours[i], label: '' })),
+    beads: raw.map((i) => remap[i]),
   };
 }

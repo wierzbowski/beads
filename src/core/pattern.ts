@@ -39,6 +39,11 @@ export function isWithinLimits(pattern: Pattern): boolean {
   return pattern.width <= MAX_WIDTH && pattern.height <= MAX_HEIGHT;
 }
 
+/** Whether a pattern of this size fits the limits upright or turned sideways (so it can be rotated). */
+export function fitsSomeOrientation({ width, height }: { width: number; height: number }): boolean {
+  return (width <= MAX_WIDTH && height <= MAX_HEIGHT) || (height <= MAX_WIDTH && width <= MAX_HEIGHT);
+}
+
 /** Beads of a row, left to right. Row 1 is the bottom row. */
 export function rowBeads(pattern: Pattern, row: number): number[] {
   const y = pattern.height - row;

@@ -14,6 +14,7 @@ import { INITIAL_STATE } from '../core/progress';
 import { patternFromPixels } from '../core/sourceImage';
 import { confirmDialog, h, toast } from './dom';
 import { PatternViewer } from './patternViewer';
+import { readPhoto, ScaleSection } from './scaleSection';
 import { swatch } from './swatch';
 
 const numberFormat = new Intl.NumberFormat('pl-PL');
@@ -27,13 +28,20 @@ export function renderCreator(root: HTMLElement): () => void {
   let link: string | null = null;
   let linkRequest = 0;
   let viewer: PatternViewer | null = null;
+  /** Rotations and flips since the import, re-applied when Image Import rebuilds the base. */
+  let transforms: ((p: Pattern) => Pattern)[] = [];
+  let scaleSection: ScaleSection | null = null;
+  let liveFrame = 0;
 
   document.title = 'Kreator wzoru · Koraliki';
 
-  const fileInput = h('input', { type: 'file', accept: 'image/png,image/*', class: 'visually-hidden', onchange: onFile });
+  const pixelInput = h('input', { type: 'file', accept: 'image/png,image/*', class: 'visually-hidden', onchange: onPixelFile });
+  const imageInput = h('input', { type: 'file', accept: 'image/*', class: 'visually-hidden', onchange: onImageFile });
   const linkInput = h('input', { type: 'url', placeholder: 'Wklej link do wzoru…', class: 'input' });
   const loadError = h('p', { class: 'error', hidden: true });
   const editor = h('div', { class: 'editor', hidden: true });
+  const workspace = h('div', { class: 'workspace' }, editor);
+  const viewerBox = h('div', { class: 'preview' });
 
   const screen = h(
     'div',
@@ -50,9 +58,15 @@ export function renderCreator(root: HTMLElement): () => void {
       h(
         'p',
         { class: 'muted' },
-        `Wybierz mały obraz (najwyżej ${MAX_WIDTH} × ${MAX_HEIGHT} px) — każdy piksel to jeden koralik.`,
+        `Wzór z pikseli: mały obraz PNG (najwyżej ${MAX_WIDTH} × ${MAX_HEIGHT} px), każdy piksel to jeden koralik. ` +
+          'Import z obrazka: zdjęcie lub większy obraz, który zmniejszysz suwakiem skali.',
       ),
-      h('label', { class: 'btn btn-primary' }, 'Wybierz obraz PNG', fileInput),
+      h(
+        'div',
+        { class: 'row' },
+        h('label', { class: 'btn btn-primary' }, 'Wzór z pikseli', pixelInput),
+        h('label', { class: 'btn btn-primary' }, 'Import z obrazka', imageInput),
+      ),
       h('p', { class: 'muted or' }, 'albo edytuj istniejący wzór:'),
       h(
         'div',
@@ -62,7 +76,7 @@ export function renderCreator(root: HTMLElement): () => void {
       ),
       loadError,
     ),
-    editor,
+    workspace,
   );
   root.appendChild(screen);
 
@@ -71,19 +85,78 @@ export function renderCreator(root: HTMLElement): () => void {
     loadError.hidden = false;
   }
 
-  async function onFile() {
-    const file = fileInput.files?.[0];
-    fileInput.value = '';
+  async function onPixelFile() {
+    const file = pixelInput.files?.[0];
+    pixelInput.value = '';
     if (!file) return;
     loadError.hidden = true;
     try {
-      const name = file.name.replace(/\.[^.]+$/, '');
-      const result = await readSourceImage(file, name);
+      const result = await readSourceImage(file, fileName(file));
       if (!result.ok) return showLoadError(result.error);
       startEditing(result.pattern, createColourReducer(result.pattern));
     } catch {
       showLoadError('Nie udało się odczytać obrazu. Spróbuj pliku PNG.');
     }
+  }
+
+  async function onImageFile() {
+    const file = imageInput.files?.[0];
+    imageInput.value = '';
+    if (!file) return;
+    loadError.hidden = true;
+    try {
+      const photo = await readPhoto(file, fileName(file));
+      resetSource();
+      scaleSection = new ScaleSection(photo, (done) => (done ? rebuildFromBlocks() : scheduleLivePreview()));
+      workspace.prepend(scaleSection.element);
+      screen.classList.add('with-photo');
+      rebuildFromBlocks(true);
+    } catch {
+      showLoadError('Nie udało się odczytać obrazu. Spróbuj pliku JPG lub PNG.');
+    }
+  }
+
+  /** Forgets the previous import, including its photo. */
+  function resetSource() {
+    cancelAnimationFrame(liveFrame);
+    liveFrame = 0;
+    scaleSection?.destroy();
+    scaleSection = null;
+    screen.classList.remove('with-photo');
+    transforms = [];
+    pattern = null;
+  }
+
+  /**
+   * Rebuilds the pattern from the photo's blocks after a scale or crop change: Colour Reduction starts over,
+   * labels carry over by exact colour, and rotation, flips and the name are kept.
+   */
+  function rebuildFromBlocks(refit = false) {
+    cancelAnimationFrame(liveFrame);
+    liveFrame = 0;
+    const blocks = scaleSection?.blocks();
+    if (!blocks) {
+      // Too many beads to be shared even rotated; the Skala section says so.
+      editor.hidden = true;
+      link = null;
+      linkRequest++;
+      return;
+    }
+    const newBase = transforms.reduce((p, fn) => fn(p), blocks);
+    base = newBase;
+    reducer = createColourReducer(newBase);
+    colourCount = reducer.maxColours;
+    setPattern(reduceColours(newBase, reducer, colourCount, pattern ?? undefined), { refit });
+  }
+
+  /** While dragging, previews the blocks in their exact colours; Colour Reduction waits for the release. */
+  function scheduleLivePreview() {
+    if (liveFrame) return;
+    liveFrame = requestAnimationFrame(() => {
+      liveFrame = 0;
+      const blocks = scaleSection?.blocks();
+      if (blocks && viewer && !editor.hidden) viewer.setPattern(transforms.reduce((p, fn) => fn(p), blocks), true);
+    });
   }
 
   async function onLoadLink() {
@@ -101,27 +174,30 @@ export function renderCreator(root: HTMLElement): () => void {
   }
 
   function startEditing(newBase: Pattern, newReducer: ColourReducer, initial?: Pattern) {
+    resetSource();
     base = newBase;
     reducer = newReducer;
     colourCount = initial ? initial.palette.length : newReducer.maxColours;
-    setPattern(initial ?? reduceColours(newBase, newReducer, colourCount));
+    setPattern(initial ?? reduceColours(newBase, newReducer, colourCount), { refit: true });
   }
 
   /** Rotation and flips apply to both the base and the edited pattern, so they stay aligned. */
   function transform(fn: (p: Pattern) => Pattern) {
+    transforms.push(fn);
     base = fn(base!);
-    setPattern(fn(pattern!));
+    setPattern(fn(pattern!), { refit: true });
   }
 
-  function setPattern(next: Pattern) {
+  /** `refit` fits the preview to the new pattern; otherwise its zoom and pan are kept. */
+  function setPattern(next: Pattern, { refit = false } = {}) {
     pattern = next;
     link = null;
-    renderEditor();
+    renderEditor(refit);
     refreshLink();
   }
 
   /** Re-renders everything that depends on the bead grid or palette. */
-  function renderEditor() {
+  function renderEditor(refit: boolean) {
     if (!pattern) return;
     const p = pattern;
     const tooWide = !isWithinLimits(p);
@@ -135,8 +211,6 @@ export function renderCreator(root: HTMLElement): () => void {
         refreshLink();
       },
     });
-
-    const viewerBox = h('div', { class: 'preview' });
 
     editor.replaceChildren(
       h(
@@ -168,10 +242,13 @@ export function renderCreator(root: HTMLElement): () => void {
       shareCard(tooWide),
     );
 
-    viewer?.destroy();
-    viewer = new PatternViewer(viewerBox, p, { fit: 'contain' });
-    viewer.setState(null);
     editor.hidden = false;
+    if (viewer) {
+      viewer.setPattern(p, !refit);
+    } else {
+      viewer = new PatternViewer(viewerBox, p, { fit: 'contain' });
+      viewer.setState(null);
+    }
   }
 
   /** Colour Reduction control; recalculates from all source colours when released. */
@@ -311,9 +388,14 @@ export function renderCreator(root: HTMLElement): () => void {
   }
 
   return () => {
+    resetSource();
     viewer?.destroy();
     screen.remove();
   };
+}
+
+function fileName(file: File): string {
+  return file.name.replace(/\.[^.]+$/, '');
 }
 
 async function readSourceImage(file: File, name: string) {

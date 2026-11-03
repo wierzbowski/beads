@@ -248,6 +248,76 @@ h2 {
   }
 }
 
+/* Image Import */
+
+.photo-view {
+  height: 50vh;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.scale-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.scale-axis label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.scale-number {
+  width: 6rem;
+  min-height: 36px;
+  color: var(--text);
+}
+
+.lock {
+  width: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+  opacity: 0.45;
+}
+
+.lock.locked {
+  opacity: 1;
+  border-color: var(--primary);
+  background: #e6f2f1;
+}
+
+.scale-size {
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.nudge .btn {
+  width: 44px;
+  padding: 0;
+}
+
+@media (min-width: 960px) {
+  .creator.with-photo {
+    max-width: 1280px;
+  }
+
+  .with-photo .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .with-photo .photo-view {
+    height: min(70vh, 640px);
+  }
+}
+
 .link-output {
   width: 100%;
   margin-top: 0.75rem;

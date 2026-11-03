@@ -80,10 +80,15 @@ export class PatternViewer {
     this.element.remove();
   }
 
-  setPattern(pattern: Pattern) {
+  /** Replaces the pattern; `keepView` keeps the current zoom and pan instead of fitting the new pattern. */
+  setPattern(pattern: Pattern, keepView = false) {
     this.pattern = pattern;
     this.updateColours();
-    this.needsInitialFit = true;
+    if (keepView) {
+      this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale));
+    } else {
+      this.needsInitialFit = true;
+    }
     this.resize();
   }
 

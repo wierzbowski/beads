@@ -1,6 +1,6 @@
 # Beads
 
-A tool that turns a small pixel image into a bead loom pattern and guides the crafter through weaving it row by row, from the bottom up.
+A tool that turns an image into a bead loom pattern and guides the crafter through weaving it row by row, from the bottom up.
 
 ## Pattern
 
@@ -9,8 +9,28 @@ A rectangular grid of beads to be woven on a loom, together with its palette, na
 _Avoid_: Design, project, chart
 
 **Source Image**:
-The small pixel image a pattern is created from; one pixel becomes one bead.
+The image a pattern is created from, either a ready pixel pattern or a photo.
 _Avoid_: Picture, input file
+
+**Pixel Import** (*Wzór z pikseli*):
+Creating a pattern from a source image in which each pixel already is one bead, keeping its exact colours.
+_Avoid_: PNG import, exact import
+
+**Image Import** (*Import z obrazka*):
+Creating a pattern from a larger source image, such as a photo, by dividing a crop of it into blocks, each becoming one bead.
+_Avoid_: Photo import, scaling, resize
+
+**Crop** (*Kadr*):
+The rectangular part of the source image used by an image import; its top-left corner is where the blocks start.
+_Avoid_: Selection, region, offset
+
+**Scale** (*Skala*):
+The width and height of a block in source image pixels, written 1:N; horizontal and vertical scale may differ.
+_Avoid_: Zoom, ratio, resolution
+
+**Block**:
+One rectangle of the crop, the size given by the scale, that becomes a single bead; its colour comes from the block's centre.
+_Avoid_: Cell, tile, chunk
 
 **Bead**:
 A single cell of the pattern grid, coloured with one palette colour.

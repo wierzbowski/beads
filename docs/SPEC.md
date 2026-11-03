@@ -69,14 +69,49 @@ All routing uses the URL hash, so GitHub Pages only ever serves `index.html`.
 - Reached at `#kreator`. The header has a **Galeria** link back to the Gallery.
 
 ### Input
-- A PNG file, or a pasted Pattern Link to edit an existing pattern.
-- Each pixel becomes one bead, using exact colours. One image row is one pattern row. Row 1 is the bottom image row.
+- Two buttons side by side, **Wzór z pikseli** (Pixel Import) and **Import z obrazka** (Image Import), and below them a field for a pasted Pattern Link to edit an existing pattern.
+- All three lead into the same editor (Colour Reduction, Editing, Output below).
+- Any number of colours is accepted; Colour Reduction brings it to at most 32 (see below).
+- A result that fits only sideways (e.g. 67 × 17) is loaded so it can be rotated. Sharing stays disabled until the pattern is at most 50 wide and 500 tall.
+- Palette is ordered from the most used colour.
+- Row 1 is the bottom row of the image (of the crop, for Image Import).
+
+### Pixel Import
+- A PNG file. Each pixel becomes one bead, using exact colours. One image row is one pattern row.
 - Rejected with a Polish message:
   - any transparent (non-opaque) pixel
   - an image that doesn't fit 50 × 500 in either orientation
-- Any number of colours is accepted; Colour Reduction brings it to at most 32 (see below).
-- An image that fits only sideways (e.g. 67 × 17) is loaded so it can be rotated. Sharing stays disabled until the pattern is at most 50 wide and 500 tall.
-- Palette is ordered from the most used colour.
+
+### Image Import
+- Any image the browser can decode (PNG, JPEG, WebP, HEIC where supported), of any size. Transparent pixels are blended onto white.
+- Images over 4000 px on the longer side are downscaled internally on load. Scale, crop and nudge values are still shown and entered in the original image's pixels.
+- The 50 × 500 limit applies to the resulting pattern only, as for Pixel Import.
+
+#### Skala section
+Shown above the editor, only for Image Import.
+- **Photo view**: the source image with the crop rectangle and the block grid drawn over it. Own pan and zoom, as in the pattern viewer.
+  - Dragging a crop corner or edge handle resizes the crop; dragging inside the crop moves it (with the grid); dragging outside pans; pinch or mouse wheel zooms.
+  - Two fingers or the right mouse button always pan. While the crop covers the whole image, dragging inside it pans too, since the crop cannot move.
+  - Handles keep a constant on-screen size at any zoom.
+  - Nudge buttons move the crop by ±1 px for fine alignment.
+  - By default the crop covers the whole image.
+- **Scale**: two sliders, X and Y, each with a number field for an exact value.
+  - Fractional, step 0.05, from 1 up to the crop's side (one bead across). The sliders are logarithmic, so small scales stay precise on a large photo.
+  - Locked together by default with a 🔗 toggle: moving either moves both. Unlocking keeps the current values. Re-locking sets Y to X.
+  - Default: the smallest locked scale at which the result fits 50 × 500 in some orientation.
+- Result size shown live, e.g. `11 × 67 koralików`, in red while over the limits even rotated. The editor is then hidden until the scale is raised, which also keeps tiny scales on a large photo from building a huge pattern.
+- On a phone the section is stacked: photo view (about half the screen height), sliders and result size, nudge buttons; the pattern preview follows in the editor. On desktop the photo view and the pattern preview sit side by side.
+
+#### Blocks
+- The crop's top-left corner is the grid origin. The pattern is `floor(crop width / X scale)` × `floor(crop height / Y scale)` beads.
+- A strip at the right or bottom narrower than a full block is left out, and shown dimmed in the photo view.
+- Each bead's colour is the average of the middle 50% of its block on each axis (25% of its area), always at least the one pixel nearest the block's centre. Pixels only partly inside that area count in proportion. Averaging is done in linear light, not raw sRGB.
+- The resulting colours go through Colour Reduction like any imported image, including the automatic near-identical cleanup. **Liczba kolorów** defaults to the maximum, as for Pixel Import.
+
+#### Live update
+- While a scale slider or the crop is being dragged, the grid overlay and the pattern preview update at most once per animation frame. Both keep their pan and zoom.
+- Colour Reduction and the palette list recalculate when the drag ends.
+- A scale or crop change rebuilds the pattern: the colour count resets to the default, manual merges are lost, labels carry over only for exact colour matches, and rotation, flips and the pattern name are kept.
 
 ### Colour Reduction
 - Colour similarity is measured perceptually (CIELAB distance), not in raw RGB.
@@ -149,6 +184,8 @@ Vitest unit tests for the logic:
 - merge, rotate and flip
 - colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
 - PNG validation: transparency and size limits
+- Image Import blocks: whole and fractional scales (X and Y), dropped partial blocks, minimum one-pixel sample, linear-light averaging, transparency blended onto white
+- Image Import scale rules: default scale, slider bounds, lock and re-lock
 - progress rules: done, undo, jump, reset, bounds, and `localStorage` vs link precedence
 - every Gallery payload decodes successfully
 - Gallery search: case- and diacritic-insensitive name matching
