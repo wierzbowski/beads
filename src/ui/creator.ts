@@ -21,6 +21,7 @@ import { patternFromPixels } from '../core/sourceImage';
 import { adjustColourDialog } from './colourAdjustDialog';
 import { confirmDialog, guardControl, h, toast } from './dom';
 import { createGalleryAdder } from './galleryAdder';
+import { patternShareImage } from './patternThumbnail';
 import { PatternViewer } from './patternViewer';
 import { readPhoto, ScaleSection } from './scaleSection';
 import { swatch } from './swatch';
@@ -34,6 +35,8 @@ export function renderCreator(root: HTMLElement): () => void {
   let colourCount = 0;
   let pattern: Pattern | null = null;
   let link: string | null = null;
+  /** The Share Image for `link`, prepared with it so Udostępnij can share straight from the tap (ADR-0007). */
+  let shareImage: Promise<File | null> | null = null;
   let linkRequest = 0;
   let viewer: PatternViewer | null = null;
   /** Rotations and flips since the import, re-applied when Image Import rebuilds the base. */
@@ -163,6 +166,7 @@ export function renderCreator(root: HTMLElement): () => void {
       // Too many beads to be shared even rotated; the Skala section says so.
       editor.hidden = true;
       link = null;
+      shareImage = null;
       linkRequest++;
       return;
     }
@@ -276,6 +280,7 @@ export function renderCreator(root: HTMLElement): () => void {
   function setPattern(next: Pattern, { refit = false } = {}) {
     pattern = next;
     link = null;
+    shareImage = null;
     renderEditor(refit);
     refreshLink();
   }
@@ -542,6 +547,7 @@ export function renderCreator(root: HTMLElement): () => void {
     const p = pattern;
     if (!p || !isWithinLimits(p)) {
       link = null;
+      shareImage = null;
       galleryAdder?.setLink(null, null);
       return;
     }
@@ -549,6 +555,7 @@ export function renderCreator(root: HTMLElement): () => void {
     const payload = await encodePattern(withoutUnusedColours(p), INITIAL_STATE);
     if (request !== linkRequest) return;
     link = patternLinkUrl(location.origin + location.pathname, payload);
+    shareImage = shareImageFile(p);
     linkOutput.value = link;
     for (const b of [shareButton, copyButton]) b.disabled = false;
     galleryAdder?.setLink(p, payload);
@@ -557,10 +564,21 @@ export function renderCreator(root: HTMLElement): () => void {
   async function onShare() {
     if (!link || !pattern) return;
     if (!navigator.share) return onCopy();
+    const [url, title, image] = [link, pattern.name, shareImage];
+    const text = `Wzór: ${title}`;
+    const file = await image;
+    // With a file attached, apps often drop `url`, so the link goes in the text (ADR-0007).
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        return await navigator.share({ title, text: `${text}\n${url}`, files: [file] });
+      } catch (e) {
+        if (isAbort(e)) return;
+      }
+    }
     try {
-      await navigator.share({ title: pattern.name, text: `Wzór: ${pattern.name}`, url: link });
+      await navigator.share({ title, text, url });
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (isAbort(e)) return;
       onCopy();
     }
   }
@@ -582,11 +600,11 @@ export function renderCreator(root: HTMLElement): () => void {
     const { width, height } = pattern;
     const canvas = h('canvas', { width, height });
     canvas.getContext('2d')!.putImageData(new ImageData(patternRgba(pattern), width, height), 0, 0);
-    const name = pattern.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'wzor';
+    const name = pngFileName(pattern);
     canvas.toBlob((blob) => {
       if (!blob) return toast('Nie udało się utworzyć obrazu');
       const url = URL.createObjectURL(blob);
-      h('a', { href: url, download: `${name}.png` }).click();
+      h('a', { href: url, download: name }).click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
     }, 'image/png');
   }
@@ -621,6 +639,23 @@ function isTextField(target: EventTarget | null): boolean {
 
 function fileName(file: File): string {
   return file.name.replace(/\.[^.]+$/, '');
+}
+
+/** The pattern name without characters file systems reject, for Pobierz PNG and the Share Image. */
+function pngFileName(pattern: Pattern): string {
+  return `${pattern.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'wzor'}.png`;
+}
+
+function shareImageFile(pattern: Pattern): Promise<File | null> {
+  return new Promise((resolve) => {
+    patternShareImage(pattern).toBlob((blob) => {
+      resolve(blob && new File([blob], pngFileName(pattern), { type: 'image/png' }));
+    }, 'image/png');
+  });
+}
+
+function isAbort(e: unknown): boolean {
+  return e instanceof DOMException && e.name === 'AbortError';
 }
 
 async function readSourceImage(file: File, name: string) {

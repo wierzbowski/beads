@@ -132,6 +132,10 @@ _Avoid_: Player, viewer, tracker
 A shareable address that fully contains a pattern and, optionally, its progress and reading direction.
 _Avoid_: URL, share code
 
+**Share Image** (*Miniatura*):
+A picture of the whole pattern, drawn as beads, sent together with its pattern link so the recipient sees the pattern before opening it.
+_Avoid_: Thumbnail, preview, link preview, export
+
 **Gallery**:
 The published, hand-picked list of named patterns, shown as previews that can be searched and sorted by name. It is the app's home page.
 _Avoid_: Library, collection, history, favourites
