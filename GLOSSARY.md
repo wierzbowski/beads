@@ -29,7 +29,7 @@ The width and height of a block in source image pixels, written 1:N; horizontal 
 _Avoid_: Zoom, ratio, resolution
 
 **Block**:
-One rectangle of the crop, the size given by the scale, that becomes a single bead; its colour comes from the block's centre.
+One rectangle of the crop, the size given by the scale, that becomes a single bead; its colour comes from the middle of the block, leaving out its edges.
 _Avoid_: Cell, tile, chunk
 
 **Bead**:
@@ -55,6 +55,26 @@ _Avoid_: Code, ID, index
 **Merge**:
 Folding one bead colour into another so every bead of the first becomes the second.
 _Avoid_: Replace, quantise
+
+**Selected Colour** (*Wybrany kolor*):
+The bead colour chosen in the Creator's palette list, used for painting beads and opened for colour adjustment.
+_Avoid_: Active colour, brush, current colour
+
+**Paint**:
+Setting a single bead to the selected colour, to fix small errors by hand.
+_Avoid_: Draw, fill, edit pixel
+
+**Colour Adjustment**:
+Changing a bead colour itself, lighter or darker, in hue or in saturation; every bead of that colour changes with it.
+_Avoid_: Recolour, tint, colour correction
+
+**Manual Edit** (*Ręczna poprawka*):
+A change made by hand on top of the generated pattern: a merge, a colour adjustment or a painted bead. Manual edits can be undone one at a time and are lost when the pattern is rebuilt.
+_Avoid_: Tweak, override, fix
+
+**Rebuild**:
+Generating the pattern again from what it was created from (the source image, or the loaded pattern link) after the colour count, scale or crop changes, which discards manual edits.
+_Avoid_: Regenerate, refresh
 
 **Colour Reduction**:
 Lowering the number of bead colours by repeatedly merging the most similar ones, preferring merges that change the fewest beads; the more-used colour survives each merge.

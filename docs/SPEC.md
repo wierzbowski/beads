@@ -106,21 +106,22 @@ Shown above the editor, only for Image Import.
 #### Blocks
 - The crop's top-left corner is the grid origin. The pattern is `floor(crop width / X scale)` × `floor(crop height / Y scale)` beads.
 - A strip at the right or bottom narrower than a full block is left out, and shown dimmed in the photo view.
-- Each bead's colour is the average of the middle 50% of its block on each axis (25% of its area), always at least the one pixel nearest the block's centre. Pixels only partly inside that area count in proportion. Averaging is done in linear light, not raw sRGB.
+- Each bead's colour is the average of the middle 80% of its block on each axis (64% of its area, leaving out a 10% margin on every side), always at least the one pixel nearest the block's centre. Pixels only partly inside that area count in proportion. Averaging is done in linear light, not raw sRGB.
 - The resulting colours go through Colour Reduction like any imported image, including the automatic near-identical cleanup. **Liczba kolorów** defaults to the maximum, as for Pixel Import.
 
 #### Live update
 - While a scale slider or the crop is being dragged, the grid overlay and the pattern preview update at most once per animation frame. Both keep their pan and zoom.
 - Colour Reduction and the palette list recalculate when the drag ends.
-- A scale or crop change rebuilds the pattern: the colour count resets to the default, manual merges are lost, labels carry over only for exact colour matches, and rotation, flips and the pattern name are kept.
+- A scale or crop change rebuilds the pattern: the colour count resets to the default, manual edits are lost (ADR-0006), labels carry over only for exact colour matches, and rotation, flips and the pattern name are kept.
 
 ### Colour Reduction
 - Colour similarity is measured perceptually (CIELAB distance), not in raw RGB.
 - On image import, near-identical shades (indistinguishable by eye) are merged automatically.
 - **Liczba kolorów** slider: from 2 (or 1 for a single-colour image) up to the colours left after that cleanup, capped at 32. It defaults to the maximum.
 - Each step merges the pair of colours with the lowest cost, where cost grows with colour distance and with the number of beads that would change. Rare stray colours (e.g. anti-aliasing) go before large, deliberate ones.
-- The more-used colour of a merged pair survives, so every bead colour is an exact colour from the source image (no averaging).
-- The slider always recalculates from the full set of image colours, keeping any rotation/flip. Labels stay attached to colours that survive (matched by exact colour). Manual merges are replaced.
+- The more-used colour of a merged pair survives, so every bead colour is one of the colours before reduction (no averaging between them) until it is adjusted by hand.
+- While the slider is dragged, the preview, the palette list and the colour count update live, at most once per animation frame. The preview keeps its pan and zoom.
+- The slider always recalculates from the full set of image colours, keeping any rotation/flip. Labels stay attached to colours that survive (matched by exact colour). Manual edits are lost (ADR-0006).
 - A pattern loaded from a link skips the automatic cleanup, so it opens unchanged. The slider can still reduce it.
 
 ### Editing
@@ -129,6 +130,27 @@ Shown above the editor, only for Image Import.
 - Merge: fold a bead colour into another one. Its beads take the target colour, and it leaves the palette.
 - Rotate 90° and flip horizontal/vertical.
 - Pattern name field.
+
+#### Selected colour and painting
+- Clicking a palette row or its swatch selects that bead colour; the row is highlighted. Clicking the selected row outside its swatch, or pressing Esc, deselects. Clicks in a row's label field or merge picker never change the selection.
+- While a colour is selected, tapping (not dragging) a bead in the preview paints it with that colour. Dragging still pans and the wheel still zooms. The preview shows a crosshair cursor. Tapping a bead that already has the selected colour does nothing.
+- A colour painted down to zero beads stays in the palette list, dimmed with `× 0`, so the list doesn't jump; it is left out of the link. The Creator shows no colour letters, so this never shows a letter that differs from the Crafting View.
+- Palette order is set when the pattern is built (most used first) and does not change during manual edits, even when counts do.
+- The selection is cleared by a rebuild, or when the selected colour is merged into another one. It stays when the colour is painted down to zero or adjusted.
+
+#### Colour adjustment
+- Clicking the swatch of the already selected colour opens the **adjust dialog**: old and new colour side by side, and sliders **Jasność**, **Odcień** and **Nasycenie**.
+- The sliders work in a perceptual colour space (the CIELAB family used by Colour Reduction), so lightness changes don't shift the hue.
+- The preview shows the adjusted colour live while the dialog is open.
+- **Anuluj** (or Esc) closes without changes; **Przywróć** sets the sliders back to the colour as generated by the last build, undoing all earlier adjustments of it; **Zastosuj** applies. The colour stays selected afterwards.
+- The label is kept as it is.
+- If the adjusted colour exactly matches another palette colour (including one with zero beads), **Zastosuj** offers to merge into it instead (**Ten kolor jest już w palecie jako „…” — połączyć?**). Confirming is an ordinary merge: the other colour and its label survive. Cancelling returns to the dialog. Colours that are merely close are allowed.
+
+#### Manual edits and undo
+- Manual edits are merges, colour adjustments and painted beads. Label and pattern name changes are not: they are not undone by Cofnij and survive a rebuild as before (labels by exact colour).
+- **Cofnij** (and Ctrl+Z when no text field is focused) undoes the last manual edit, one at a time. Disabled when there is nothing to undo.
+- Rotating or flipping clears the undo history; the edits themselves stay in the pattern.
+- A rebuild (colour count, scale or crop) discards manual edits and the undo history (ADR-0006). When there are manual edits, starting to change one of those controls (dragging the **Liczba kolorów** or scale sliders, resizing or moving the crop, a nudge button, a number field) first asks; panning or zooming the photo view does not. The question is **Zmiana usunie ręczne poprawki. Kontynuować?**; Anuluj puts the control back.
 
 ### Output
 - **Udostępnij**: `navigator.share` with the pattern name and link (opens the Android share sheet, e.g. WhatsApp). Falls back to copying.
@@ -203,9 +225,10 @@ Vitest unit tests for the logic:
 - run computation and row hint ordering for both reading directions
 - colour letters: A–Z, then AA onwards
 - merge, rotate and flip
+- painting a bead, colour adjustment (lightness keeps hue, exact-match detection), unused colours left out of the link, undo
 - colour reduction: near-duplicate cleanup, rare colours merged first, exact surviving colours, slider bounds, label carry-over
 - PNG validation: transparency and size limits
-- Image Import blocks: whole and fractional scales (X and Y), dropped partial blocks, minimum one-pixel sample, linear-light averaging, transparency blended onto white
+- Image Import blocks: whole and fractional scales (X and Y), dropped partial blocks, middle 80% sample area, minimum one-pixel sample, linear-light averaging, transparency blended onto white
 - Image Import scale rules: default scale, slider bounds, lock and re-lock
 - progress rules: done, undo, jump, reset, bounds, and `localStorage` vs link precedence
 - every Gallery payload decodes successfully
