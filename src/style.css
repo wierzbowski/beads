@@ -325,6 +325,14 @@ h2 {
   color: var(--muted);
 }
 
+.gallery-adder {
+  margin-top: 0.75rem;
+}
+
+.gallery-adder p {
+  margin: 0.5rem 0 0;
+}
+
 /* Gallery */
 
 .gallery {

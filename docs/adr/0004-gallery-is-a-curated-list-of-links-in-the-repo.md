@@ -1,5 +1,7 @@
 # The gallery is a curated list of pattern links kept in the repo
 
+_Amended by ADR-0005: in local dev, the Creator can add or replace entries in the file instead of a hand edit (committing is still manual), and it warns about the Same Pattern under another name._
+
 The gallery lists patterns that are hard-coded in a source file and deployed with the site. Adding or replacing a pattern means editing that file and committing. Each entry maps a gallery name to a link payload (the part after `#p=`); size and preview are decoded from the payload. The gallery name is the key rather than the name inside the payload, so the file reads as a list of names and a pattern can be renamed in the gallery without regenerating its link. This keeps ADR-0001 intact (still no backend) while making the list identical on every device and immune to cleared browser data.
 
 ## Considered Options

@@ -13,6 +13,7 @@ import {
 import { INITIAL_STATE } from '../core/progress';
 import { patternFromPixels } from '../core/sourceImage';
 import { confirmDialog, h, toast } from './dom';
+import { createGalleryAdder } from './galleryAdder';
 import { PatternViewer } from './patternViewer';
 import { readPhoto, ScaleSection } from './scaleSection';
 import { swatch } from './swatch';
@@ -338,16 +339,20 @@ export function renderCreator(root: HTMLElement): () => void {
   const shareButton = h('button', { class: 'btn btn-primary', onclick: onShare }, 'Udostępnij');
   const copyButton = h('button', { class: 'btn', onclick: onCopy }, 'Kopiuj link');
   const previewButton = h('button', { class: 'btn', onclick: () => link && window.open(link, '_blank') }, 'Otwórz podgląd');
+  // Writes src/gallery.ts through the dev server, so it only exists under `pnpm dev` (ADR-0005).
+  const galleryAdder = import.meta.env.DEV ? createGalleryAdder() : null;
 
   function shareCard(disabled: boolean) {
     for (const b of [shareButton, copyButton, previewButton]) b.disabled = disabled || !link;
+    if (disabled) galleryAdder?.setLink(null, null);
     linkOutput.hidden = disabled;
     return h(
       'section',
       { class: 'card' },
       h('h2', {}, 'Udostępnij'),
-      h('div', { class: 'row' }, shareButton, copyButton, previewButton),
+      h('div', { class: 'row' }, shareButton, copyButton, previewButton, galleryAdder?.button),
       linkOutput,
+      galleryAdder?.panel,
     );
   }
 
@@ -356,6 +361,7 @@ export function renderCreator(root: HTMLElement): () => void {
     const p = pattern;
     if (!p || !isWithinLimits(p)) {
       link = null;
+      galleryAdder?.setLink(null, null);
       return;
     }
     const payload = await encodePattern(p, INITIAL_STATE);
@@ -363,6 +369,7 @@ export function renderCreator(root: HTMLElement): () => void {
     link = patternLinkUrl(location.origin + location.pathname, payload);
     linkOutput.value = link;
     for (const b of [shareButton, copyButton, previewButton]) b.disabled = false;
+    galleryAdder?.setLink(p, payload);
   }
 
   async function onShare() {

@@ -115,3 +115,7 @@ _Avoid_: URL, share code
 **Gallery**:
 The published, hand-picked list of named patterns, shown as previews that can be searched and sorted by name. It is the app's home page.
 _Avoid_: Library, collection, history, favourites
+
+**Gallery Name**:
+The unique name a pattern is listed under in the gallery, made of the letters a–z, digits and underscores and starting with a letter; it can differ from the pattern's own name.
+_Avoid_: Slug, ID
