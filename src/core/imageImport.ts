@@ -106,14 +106,17 @@ interface Sample {
   weight: number;
 }
 
+/** Share of a block's side left out at each end when sampling, so edges bleeding from neighbours don't count. */
+const SAMPLE_MARGIN = 0.1;
+
 /**
- * The pixels sampled along one axis for a block: its middle half, each pixel weighted by how much of it
- * falls inside, or just the pixel at the block's centre when the middle half is narrower than a pixel.
+ * The pixels sampled along one axis for a block: its middle 80%, each pixel weighted by how much of it
+ * falls inside, or just the pixel at the block's centre when that middle is narrower than a pixel.
  */
 function sampleSpan(start: number, size: number, limit: number): Sample[] {
   const centre = { index: Math.min(limit - 1, Math.max(0, Math.floor(start + size / 2))), weight: 1 };
-  const from = start + size / 4;
-  const to = start + (size * 3) / 4;
+  const from = start + size * SAMPLE_MARGIN;
+  const to = start + size * (1 - SAMPLE_MARGIN);
   if (to - from < 1) return [centre];
   const samples: Sample[] = [];
   for (let p = Math.max(0, Math.floor(from)); p < Math.min(limit, to); p++) {

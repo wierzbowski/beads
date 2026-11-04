@@ -6,7 +6,7 @@ const NEAR_IDENTICAL = 5;
 /** Most colours entering pairwise merging; keeps noisy images (thousands of shades) fast. */
 const MAX_CANDIDATES = 256;
 
-interface Lab {
+export interface Lab {
   l: number;
   a: number;
   b: number;

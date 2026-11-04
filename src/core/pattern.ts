@@ -103,6 +103,40 @@ export function mergeColour(pattern: Pattern, from: number, to: number): Pattern
   };
 }
 
+/** Paints the bead at `index` (row-major, from the top) with bead colour `colour`. */
+export function paintBead(pattern: Pattern, index: number, colour: number): Pattern {
+  if (pattern.beads[index] === colour) return pattern;
+  const beads = pattern.beads.slice();
+  beads[index] = colour;
+  return { ...pattern, beads };
+}
+
+/** Replaces the exact colour of bead colour `colour`, keeping its label; all its beads change with it. */
+export function setColourRgb(pattern: Pattern, colour: number, rgb: Rgb): Pattern {
+  return { ...pattern, palette: pattern.palette.map((c, i) => (i === colour ? { ...c, rgb } : c)) };
+}
+
+/** Bead count per palette index. */
+export function colourCounts(pattern: Pattern): number[] {
+  const counts = pattern.palette.map(() => 0);
+  for (const c of pattern.beads) counts[c]++;
+  return counts;
+}
+
+/** The pattern without bead colours that no bead uses, keeping the order of the rest. */
+export function withoutUnusedColours(pattern: Pattern): Pattern {
+  const counts = colourCounts(pattern);
+  if (counts.every((n) => n > 0)) return pattern;
+  const newIndex: number[] = [];
+  let next = 0;
+  for (const n of counts) newIndex.push(n > 0 ? next++ : -1);
+  return {
+    ...pattern,
+    palette: pattern.palette.filter((_, i) => counts[i] > 0),
+    beads: pattern.beads.map((c) => newIndex[c]),
+  };
+}
+
 export function rotateClockwise(pattern: Pattern): Pattern {
   const { width, height } = pattern;
   const beads = new Array<number>(width * height);

@@ -23,6 +23,8 @@ export interface ViewerOptions {
   /** 'width' fills the width and scrolls vertically; 'contain' shows the whole pattern. */
   fit: 'width' | 'contain';
   onRowTap?: (row: number) => void;
+  /** A tapped bead, as its index in `pattern.beads` (row-major from the top). */
+  onBeadTap?: (index: number) => void;
 }
 
 interface Point {
@@ -265,13 +267,17 @@ export class PatternViewer {
   };
 
   private handleTap(p: Point) {
-    if (!this.options.onRowTap) return;
     const worldX = (p.x - this.tx) / this.scale;
     const worldY = (p.y - this.ty) / this.scale;
-    if (worldX < 0 || worldX > this.contentW) return;
     const rowIndexFromTop = Math.floor((worldY - PAD) / CELL_H);
     if (rowIndexFromTop < 0 || rowIndexFromTop >= this.pattern.height) return;
-    this.options.onRowTap(this.pattern.height - rowIndexFromTop);
+    if (this.options.onBeadTap) {
+      const column = Math.floor((worldX - LABEL_W) / CELL_W);
+      if (column >= 0 && column < this.pattern.width) this.options.onBeadTap(rowIndexFromTop * this.pattern.width + column);
+    }
+    if (this.options.onRowTap && worldX >= 0 && worldX <= this.contentW) {
+      this.options.onRowTap(this.pattern.height - rowIndexFromTop);
+    }
   }
 
   private requestDraw() {

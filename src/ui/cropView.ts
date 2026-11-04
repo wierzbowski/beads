@@ -55,6 +55,8 @@ export class CropView {
     private crop: Crop,
     private scale: Scale,
     private readonly onChange: (crop: Crop, done: boolean) => void,
+    /** Asked before a drag would move or resize the crop; panning and zooming are always allowed. */
+    private readonly allowChange: () => boolean = () => true,
   ) {
     this.element = document.createElement('canvas');
     this.element.className = 'viewer-canvas';
@@ -211,7 +213,8 @@ export class CropView {
     const p = this.localPoint(e);
     this.pointers.set(e.pointerId, p);
     if (this.pointers.size === 1) {
-      this.drag = this.dragAt(p, e.button);
+      const drag = this.dragAt(p, e.button);
+      this.drag = drag.kind === 'pan' || this.allowChange() ? drag : null;
     } else {
       this.endDrag();
       if (this.pointers.size === 2) {

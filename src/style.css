@@ -228,6 +228,23 @@ h2 {
   height: 28px;
 }
 
+.palette li {
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 0.2rem;
+  margin: -0.2rem;
+}
+
+.palette li.selected {
+  background: #e3ecf7;
+  box-shadow: inset 0 0 0 2px #2563eb;
+}
+
+.palette li.unused .swatch,
+.palette li.unused .count {
+  opacity: 0.4;
+}
+
 .palette .count {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -603,6 +620,25 @@ h2 {
 
 .dialog::backdrop {
   background: rgb(0 0 0 / 0.35);
+}
+
+.adjust-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.adjust-compare {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.adjust-swatch {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px #a8a39a;
 }
 
 .dialog-body p {

@@ -1,18 +1,24 @@
 import { decodePattern, encodePattern, PatternLinkError, patternLinkUrl, payloadFromLink } from '../core/codec';
 import { type ColourReducer, createColourReducer, reduceColours } from '../core/colourReduction';
 import {
+  colourCounts,
   flipHorizontal,
   flipVertical,
   isWithinLimits,
   MAX_HEIGHT,
   MAX_WIDTH,
   mergeColour,
+  paintBead,
   type Pattern,
+  type Rgb,
   rotateClockwise,
+  setColourRgb,
+  withoutUnusedColours,
 } from '../core/pattern';
 import { INITIAL_STATE } from '../core/progress';
 import { patternFromPixels } from '../core/sourceImage';
-import { confirmDialog, h, toast } from './dom';
+import { adjustColourDialog } from './colourAdjustDialog';
+import { confirmDialog, guardControl, h, toast } from './dom';
 import { createGalleryAdder } from './galleryAdder';
 import { PatternViewer } from './patternViewer';
 import { readPhoto, ScaleSection } from './scaleSection';
@@ -33,6 +39,18 @@ export function renderCreator(root: HTMLElement): () => void {
   let transforms: ((p: Pattern) => Pattern)[] = [];
   let scaleSection: ScaleSection | null = null;
   let liveFrame = 0;
+
+  // Manual edits (ADR-0006): merges, colour adjustments and painted beads on top of the last build.
+  /** The pattern as last built, which discarding manual edits returns to. */
+  let built: Pattern | null = null;
+  /** For every palette entry, its colour as last built (for Przywróć); entries leave it with merges. */
+  let generated: Rgb[] = [];
+  let undoStack: { pattern: Pattern; generated: Rgb[] }[] = [];
+  /** Manual edits made before a rotation or flip, which cleared the undo history but kept the edits. */
+  let keptEdits = false;
+  let selected: number | null = null;
+  /** The pattern when a Liczba kolorów drag started, so labels carry over from it rather than from mid-drag. */
+  let colourDragStart: Pattern | null = null;
 
   document.title = 'Kreator wzoru · Koraliki';
 
@@ -108,7 +126,11 @@ export function renderCreator(root: HTMLElement): () => void {
     try {
       const photo = await readPhoto(file, fileName(file));
       resetSource();
-      scaleSection = new ScaleSection(photo, (done) => (done ? rebuildFromBlocks() : scheduleLivePreview()));
+      scaleSection = new ScaleSection(
+        photo,
+        (done) => (done ? rebuildFromBlocks() : scheduleLivePreview()),
+        allowRebuild,
+      );
       workspace.prepend(scaleSection.element);
       screen.classList.add('with-photo');
       rebuildFromBlocks(true);
@@ -147,7 +169,7 @@ export function renderCreator(root: HTMLElement): () => void {
     base = newBase;
     reducer = createColourReducer(newBase);
     colourCount = reducer.maxColours;
-    setPattern(reduceColours(newBase, reducer, colourCount, pattern ?? undefined), { refit });
+    build(reduceColours(newBase, reducer, colourCount, pattern ?? undefined), { refit });
   }
 
   /** While dragging, previews the blocks in their exact colours; Colour Reduction waits for the release. */
@@ -179,14 +201,74 @@ export function renderCreator(root: HTMLElement): () => void {
     base = newBase;
     reducer = newReducer;
     colourCount = initial ? initial.palette.length : newReducer.maxColours;
-    setPattern(initial ?? reduceColours(newBase, newReducer, colourCount), { refit: true });
+    build(initial ?? reduceColours(newBase, newReducer, colourCount), { refit: true });
   }
 
-  /** Rotation and flips apply to both the base and the edited pattern, so they stay aligned. */
+  /** Rotation and flips apply to both the base and the edited pattern, so they stay aligned. Manual edits stay. */
   function transform(fn: (p: Pattern) => Pattern) {
     transforms.push(fn);
     base = fn(base!);
+    built = fn(built!);
+    keptEdits = hasEdits();
+    undoStack = [];
     setPattern(fn(pattern!), { refit: true });
+  }
+
+  /** A freshly built pattern: manual edits, undo history and selection start over (ADR-0006). */
+  function build(next: Pattern, { refit = false } = {}) {
+    built = next;
+    generated = next.palette.map((c) => c.rgb);
+    undoStack = [];
+    keptEdits = false;
+    selected = null;
+    setPattern(next, { refit });
+  }
+
+  function hasEdits() {
+    return undoStack.length > 0 || keptEdits;
+  }
+
+  /** Applies a manual edit, remembering the pattern before it for Cofnij. */
+  function edit(next: Pattern, nextGenerated = generated) {
+    undoStack.push({ pattern: pattern!, generated });
+    generated = nextGenerated;
+    setPattern(next);
+  }
+
+  /** Label edits aren't manual edits, so a restored palette keeps today's labels, matched by built colour. */
+  function withCurrentLabels(target: Pattern, targetGenerated: Rgb[]): Pattern {
+    const labels = new Map(generated.map((rgb, i) => [rgbKey(rgb), pattern!.palette[i].label]));
+    return {
+      ...target,
+      name: pattern!.name,
+      palette: target.palette.map((c, i) => ({ ...c, label: labels.get(rgbKey(targetGenerated[i])) ?? c.label })),
+    };
+  }
+
+  function undo() {
+    const last = undoStack.pop();
+    if (!last || !pattern) return;
+    const selectedKey = selected === null ? null : rgbKey(generated[selected]);
+    const restored = withCurrentLabels(last.pattern, last.generated);
+    generated = last.generated;
+    const index = generated.findIndex((rgb) => rgbKey(rgb) === selectedKey);
+    selected = index >= 0 ? index : null;
+    colourCount = restored.palette.length;
+    setPattern(restored);
+  }
+
+  /**
+   * Lets a control that rebuilds the pattern go ahead when there are no manual edits. Otherwise it asks; on yes
+   * the edits are discarded (back to the last build) and the user repeats the change.
+   */
+  function allowRebuild(): boolean {
+    if (!hasEdits()) return true;
+    void confirmDialog('Zmiana usunie ręczne poprawki. Kontynuować?', 'Kontynuuj').then((ok) => {
+      if (!ok || !built || !pattern) return;
+      colourCount = built.palette.length;
+      build(withCurrentLabels(built, built.palette.map((c) => c.rgb)));
+    });
+    return false;
   }
 
   /** `refit` fits the preview to the new pattern; otherwise its zoom and pan are kept. */
@@ -196,6 +278,48 @@ export function renderCreator(root: HTMLElement): () => void {
     renderEditor(refit);
     refreshLink();
   }
+
+  function select(index: number | null) {
+    selected = index;
+    paletteItems.forEach((li, i) => li.classList.toggle('selected', i === selected));
+    if (viewer) viewer.element.style.cursor = selected === null ? '' : 'crosshair';
+  }
+
+  function onBeadTap(index: number) {
+    if (selected === null || !pattern) return;
+    const painted = paintBead(pattern, index, selected);
+    if (painted !== pattern) edit(painted);
+  }
+
+  async function openAdjust(index: number) {
+    if (!pattern) return;
+    const result = await adjustColourDialog({
+      colour: pattern.palette[index],
+      generated: generated[index],
+      onPreview: (rgb) => viewer?.setPattern(rgb ? setColourRgb(pattern!, index, rgb) : pattern!, true),
+      findMatch: (rgb) => pattern!.palette.findIndex((c, i) => i !== index && rgbKey(c.rgb) === rgbKey(rgb)),
+      labelOf: (i) => pattern!.palette[i].label,
+    });
+    if (!result) return;
+    if (result.kind === 'merge') return merge(index, result.into);
+    if (rgbKey(result.rgb) !== rgbKey(pattern.palette[index].rgb)) edit(setColourRgb(pattern, index, result.rgb));
+  }
+
+  /** Folds bead colour `from` into `to` as a manual edit; a selected `from` is deselected. */
+  function merge(from: number, to: number) {
+    const merged = mergeColour(pattern!, from, to);
+    if (selected === from) selected = null;
+    else if (selected !== null && selected > from) selected--;
+    colourCount = merged.palette.length;
+    edit(
+      merged,
+      generated.filter((_, i) => i !== from),
+    );
+  }
+
+  const paletteBox = h('div');
+  const summary = h('p', { class: 'muted' });
+  let paletteItems: HTMLLIElement[] = [];
 
   /** Re-renders everything that depends on the bead grid or palette. */
   function renderEditor(refit: boolean) {
@@ -218,17 +342,18 @@ export function renderCreator(root: HTMLElement): () => void {
         'section',
         { class: 'card' },
         h('label', { class: 'field' }, h('span', {}, 'Nazwa wzoru'), nameInput),
-        h(
-          'p',
-          { class: 'muted' },
-          `${p.width} × ${p.height} koralików · ${p.palette.length} ${plural(p.palette.length, 'kolor', 'kolory', 'kolorów')}`,
-        ),
+        summary,
         h(
           'div',
           { class: 'row' },
           h('button', { class: 'btn', onclick: () => transform(rotateClockwise) }, 'Obróć ↻'),
           h('button', { class: 'btn', onclick: () => transform(flipHorizontal) }, 'Odbij ↔'),
           h('button', { class: 'btn', onclick: () => transform(flipVertical) }, 'Odbij ↕'),
+          h(
+            'button',
+            { class: 'btn', disabled: undoStack.length === 0, title: 'Cofnij ręczną poprawkę (Ctrl+Z)', onclick: undo },
+            'Cofnij ↶',
+          ),
         ),
         tooWide &&
           h(
@@ -237,22 +362,43 @@ export function renderCreator(root: HTMLElement): () => void {
             `Wzór może mieć najwyżej ${MAX_WIDTH} koralików szerokości i ${MAX_HEIGHT} wysokości — obróć go.`,
           ),
         viewerBox,
-        h('p', { class: 'muted small' }, 'Rząd 1 to dolny rząd obrazu.'),
+        h(
+          'p',
+          { class: 'muted small' },
+          'Rząd 1 to dolny rząd obrazu. Wybierz kolor na liście, by poprawiać pojedyncze koraliki kliknięciem.',
+        ),
       ),
-      h('section', { class: 'card' }, h('h2', {}, 'Kolory'), colourCountSlider(), paletteList(p)),
+      h(
+        'section',
+        { class: 'card' },
+        h('h2', {}, 'Kolory'),
+        colourCountSlider(),
+        h('p', { class: 'muted small' }, 'Kliknij wybrany kolor jeszcze raz, by zmienić jego odcień.'),
+        paletteBox,
+      ),
       shareCard(tooWide),
     );
+    renderPalette();
 
     editor.hidden = false;
     if (viewer) {
       viewer.setPattern(p, !refit);
     } else {
-      viewer = new PatternViewer(viewerBox, p, { fit: 'contain' });
+      viewer = new PatternViewer(viewerBox, p, { fit: 'contain', onBeadTap });
       viewer.setState(null);
     }
+    select(selected);
   }
 
-  /** Colour Reduction control; recalculates from all source colours when released. */
+  /** The size and colour count line, and the palette list; also redrawn live while Liczba kolorów is dragged. */
+  function renderPalette() {
+    const p = pattern!;
+    summary.textContent = `${p.width} × ${p.height} koralików · ${p.palette.length} ${plural(p.palette.length, 'kolor', 'kolory', 'kolorów')}`;
+    paletteBox.replaceChildren(paletteList(p));
+    select(selected);
+  }
+
+  /** Colour Reduction control; the preview and palette follow while dragging, and the pattern is rebuilt on release. */
   function colourCountSlider() {
     if (!base || !reducer || reducer.maxColours <= reducer.minColours) return null;
     const shown = h('b', {}, String(colourCount));
@@ -263,12 +409,21 @@ export function renderCreator(root: HTMLElement): () => void {
       max: String(reducer.maxColours),
       step: '1',
       value: String(colourCount),
-      oninput: () => (shown.textContent = slider.value),
+      oninput: () => {
+        shown.textContent = slider.value;
+        colourDragStart ??= pattern;
+        scheduleColourPreview(Number(slider.value));
+      },
       onchange: () => {
+        cancelAnimationFrame(liveFrame);
+        liveFrame = 0;
+        const previous = colourDragStart ?? pattern!;
+        colourDragStart = null;
         colourCount = Number(slider.value);
-        setPattern(reduceColours(base!, reducer!, colourCount, pattern!));
+        build(reduceColours(base!, reducer!, colourCount, previous));
       },
     });
+    guardControl(slider, allowRebuild);
     const shades = base.palette.length;
     return h(
       'div',
@@ -283,11 +438,25 @@ export function renderCreator(root: HTMLElement): () => void {
     );
   }
 
-  function paletteList(p: Pattern) {
-    const counts = p.palette.map(() => 0);
-    for (const c of p.beads) counts[c]++;
+  /** While Liczba kolorów is dragged, reduces at most once per frame and shows it without a rebuild. */
+  function scheduleColourPreview(count: number) {
+    cancelAnimationFrame(liveFrame);
+    liveFrame = requestAnimationFrame(() => {
+      liveFrame = 0;
+      if (!base || !reducer) return;
+      pattern = reduceColours(base, reducer, count, colourDragStart ?? pattern!);
+      // Indices change with the colour count, so a selection would point at another colour.
+      selected = null;
+      renderPalette();
+      viewer?.setPattern(pattern, true);
+      refreshLink();
+    });
+  }
 
-    return h(
+  function paletteList(p: Pattern) {
+    const counts = colourCounts(p);
+
+    const list = h(
       'ul',
       { class: 'palette' },
       ...p.palette.map((colour, index) => {
@@ -314,10 +483,7 @@ export function renderCreator(root: HTMLElement): () => void {
                   `Wszystkie jego koraliki zmienią kolor.`,
                 'Połącz',
               );
-              if (!ok) return;
-              const merged = mergeColour(current, index, target);
-              colourCount = merged.palette.length;
-              setPattern(merged);
+              if (ok) merge(index, target);
             },
           },
           h('option', { value: '' }, 'Połącz z…'),
@@ -325,7 +491,17 @@ export function renderCreator(root: HTMLElement): () => void {
         );
         return h(
           'li',
-          {},
+          {
+            class: counts[index] === 0 ? 'unused' : '',
+            onclick: (e: MouseEvent) => {
+              const target = e.target as HTMLElement;
+              // Typing a label or picking a merge never changes the selection.
+              if (target.closest('input, select')) return;
+              if (selected !== index) select(index);
+              else if (target.closest('.swatch')) openAdjust(index);
+              else select(null);
+            },
+          },
           swatch(colour),
           labelInput,
           h('span', { class: 'count' }, `× ${numberFormat.format(counts[index])}`),
@@ -333,6 +509,8 @@ export function renderCreator(root: HTMLElement): () => void {
         );
       }),
     );
+    paletteItems = [...list.children] as HTMLLIElement[];
+    return list;
   }
 
   const linkOutput = h('input', { class: 'input link-output', readOnly: true, onfocus: () => linkOutput.select() });
@@ -364,7 +542,8 @@ export function renderCreator(root: HTMLElement): () => void {
       galleryAdder?.setLink(null, null);
       return;
     }
-    const payload = await encodePattern(p, INITIAL_STATE);
+    // Colours painted down to zero beads stay in the list while editing but not in the link.
+    const payload = await encodePattern(withoutUnusedColours(p), INITIAL_STATE);
     if (request !== linkRequest) return;
     link = patternLinkUrl(location.origin + location.pathname, payload);
     linkOutput.value = link;
@@ -394,11 +573,32 @@ export function renderCreator(root: HTMLElement): () => void {
     }
   }
 
+  /** Esc deselects; Ctrl+Z undoes a manual edit unless a text field has focus. Dialogs handle their own keys. */
+  function onKeyDown(e: KeyboardEvent) {
+    if (editor.hidden || document.querySelector('dialog[open]')) return;
+    if (e.key === 'Escape' && selected !== null) {
+      select(null);
+    } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTextField(e.target)) {
+      e.preventDefault();
+      undo();
+    }
+  }
+  document.addEventListener('keydown', onKeyDown);
+
   return () => {
+    document.removeEventListener('keydown', onKeyDown);
     resetSource();
     viewer?.destroy();
     screen.remove();
   };
+}
+
+function rgbKey({ r, g, b }: Rgb): number {
+  return (r << 16) | (g << 8) | b;
+}
+
+function isTextField(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== 'range');
 }
 
 function fileName(file: File): string {

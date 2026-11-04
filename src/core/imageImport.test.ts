@@ -43,9 +43,15 @@ describe('patternFromBlocks', () => {
     expect(colours(pattern)).toEqual([rgb(RED), rgb(BLUE)]);
   });
 
-  it('samples the middle of fractional blocks, ignoring their edges', () => {
-    const image = pixels([[RED, RED, GREEN, BLUE, BLUE]]);
-    const pattern = patternFromBlocks(image, whole(image), { x: 2.5, y: 1 }, 'Wzór');
+  it('ignores a 10% margin on every side of a block', () => {
+    const image = pixels([[RED, GREEN, GREEN, GREEN, GREEN, GREEN, GREEN, GREEN, GREEN, RED]]);
+    expect(colours(patternFromBlocks(image, whole(image), { x: 10, y: 1 }, 'Wzór'))).toEqual([rgb(GREEN)]);
+  });
+
+  it('samples the middle 80% of fractional blocks', () => {
+    // Blocks of 7.5 px: the middle 80% is 6 px, from 0.75 to 6.75 and from 8.25 to 14.25.
+    const image = pixels([[...Array<Px>(7).fill(RED), GREEN, ...Array<Px>(7).fill(BLUE)]]);
+    const pattern = patternFromBlocks(image, whole(image), { x: 7.5, y: 1 }, 'Wzór');
     expect(colours(pattern)).toEqual([rgb(RED), rgb(BLUE)]);
   });
 
@@ -73,12 +79,13 @@ describe('patternFromBlocks', () => {
       rgb(GREEN),
       rgb(BLUE),
     ]);
-    expect(colours(patternFromBlocks(image, whole(image), { x: 1.5, y: 1 }, 'Wzór'))).toEqual([rgb(RED), rgb(BLUE)]);
+    // Blocks of 1.2 px have a middle of 0.96 px, so each takes the pixel at its centre.
+    expect(colours(patternFromBlocks(image, whole(image), { x: 1.2, y: 1 }, 'Wzór'))).toEqual([rgb(RED), rgb(GREEN)]);
   });
 
   it('averages in linear light', () => {
-    const image = pixels([[WHITE, RED, GREEN, WHITE]]);
-    const pattern = patternFromBlocks(image, whole(image), { x: 4, y: 1 }, 'Wzór');
+    const image = pixels([[WHITE, RED, RED, RED, RED, GREEN, GREEN, GREEN, GREEN, WHITE]]);
+    const pattern = patternFromBlocks(image, whole(image), { x: 10, y: 1 }, 'Wzór');
     expect(colours(pattern)).toEqual([{ r: 188, g: 188, b: 0 }]);
   });
 

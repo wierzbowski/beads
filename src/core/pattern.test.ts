@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  colourCounts,
   colourLetter,
   colourTotals,
   flipHorizontal,
   flipVertical,
   mergeColour,
+  paintBead,
   rotateClockwise,
   rowBeads,
   rowHint,
   runs,
+  setColourRgb,
+  withoutUnusedColours,
 } from './pattern';
 import { patternFromRows, rowsOf } from './testPatterns';
 
@@ -93,6 +97,37 @@ describe('merge', () => {
     const merged = mergeColour(pattern, 2, 0); // B into R
     expect(merged.palette.map((c) => c.label)).toEqual(['R', 'G']);
     expect(rowsOf(merged)).toEqual(['RRGGR', 'RRRRR', 'RRRGR']);
+  });
+});
+
+describe('manual edits', () => {
+  it('paints a single bead', () => {
+    const painted = paintBead(pattern, 0, 2); // top-left R becomes B
+    expect(rowsOf(painted)).toEqual(['BRGGB', 'BBBBB', 'RRRGB']);
+    expect(rowsOf(pattern)[0]).toBe('RRGGB');
+  });
+
+  it('returns the same pattern when the bead already has that colour', () => {
+    expect(paintBead(pattern, 0, 0)).toBe(pattern);
+  });
+
+  it('changes the exact colour of a bead colour and keeps its label', () => {
+    const adjusted = setColourRgb(pattern, 1, { r: 0, g: 128, b: 0 });
+    expect(adjusted.palette[1]).toEqual({ rgb: { r: 0, g: 128, b: 0 }, label: 'G' });
+    expect(adjusted.beads).toEqual(pattern.beads);
+  });
+
+  it('counts beads per colour', () => {
+    expect(colourCounts(pattern)).toEqual([5, 3, 7]);
+  });
+
+  it('leaves unused colours out, keeping the order of the rest', () => {
+    // Paint every G bead red, so G has no beads left.
+    const noGreen = [2, 3, 13].reduce((p, i) => paintBead(p, i, 0), pattern);
+    const shared = withoutUnusedColours(noGreen);
+    expect(shared.palette.map((c) => c.label)).toEqual(['R', 'B']);
+    expect(rowsOf(shared)).toEqual(['RRRRB', 'BBBBB', 'RRRRB']);
+    expect(withoutUnusedColours(pattern)).toBe(pattern);
   });
 });
 

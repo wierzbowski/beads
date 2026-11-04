@@ -16,7 +16,7 @@ import {
 } from '../core/imageImport';
 import { fitsSomeOrientation, MAX_HEIGHT, MAX_WIDTH, type Pattern } from '../core/pattern';
 import { CropView } from './cropView';
-import { h } from './dom';
+import { guardControl, h } from './dom';
 
 /** Slider positions; the slider is logarithmic so small scales stay precise on a large photo. */
 const SLIDER_STEPS = 1000;
@@ -75,6 +75,8 @@ const formatScale = (s: number) => String(Math.round(s * 100) / 100);
 /**
  * The Skala section of Image Import: the photo view with crop and block grid, the X/Y scale controls and
  * nudge buttons. Reports every change; `done` is false while a slider or the crop is still being dragged.
+ * `allowChange` is asked before any control would change the crop or scale (it may refuse while there are
+ * manual edits); panning and zooming the photo are always allowed.
  */
 export class ScaleSection {
   readonly element: HTMLElement;
@@ -89,6 +91,7 @@ export class ScaleSection {
   constructor(
     private readonly photo: Photo,
     private readonly onChange: (done: boolean) => void,
+    private readonly allowChange: () => boolean = () => true,
   ) {
     this.crop = { x: 0, y: 0, width: photo.width, height: photo.height };
     const s = defaultScale(this.crop);
@@ -97,8 +100,11 @@ export class ScaleSection {
     const photoBox = h('div', { class: 'photo-view' });
     this.controls = { x: this.scaleControl('x'), y: this.scaleControl('y') };
     this.lockButton = h('button', { class: 'btn lock', onclick: () => this.toggleLock() }, '🔗');
-    const nudge = (label: string, symbol: string, dx: number, dy: number) =>
-      h('button', { class: 'btn', title: label, ariaLabel: label, onclick: () => this.nudge(dx, dy) }, symbol);
+    const nudge = (label: string, symbol: string, dx: number, dy: number) => {
+      const button = h('button', { class: 'btn', title: label, ariaLabel: label, onclick: () => this.nudge(dx, dy) }, symbol);
+      guardControl(button, allowChange);
+      return button;
+    };
 
     this.element = h(
       'section',
@@ -129,7 +135,7 @@ export class ScaleSection {
       this.scale = clampToCrop(this.scale, this.locked, crop);
       this.sync();
       this.onChange(done);
-    });
+    }, allowChange);
     this.sync();
   }
 
@@ -164,10 +170,12 @@ export class ScaleSection {
       inputMode: 'decimal',
       onchange: () => {
         const value = Number(number.value);
-        if (number.value !== '' && Number.isFinite(value)) this.setScale(axis, value, true);
+        // Typing, pasting, the spinner and the wheel all end here, so the field is guarded on commit.
+        if (number.value !== '' && Number.isFinite(value) && this.allowChange()) this.setScale(axis, value, true);
         else this.sync();
       },
     });
+    guardControl(slider, this.allowChange);
     const element = h(
       'div',
       { class: 'scale-axis' },
@@ -188,11 +196,15 @@ export class ScaleSection {
   }
 
   private toggleLock() {
-    this.locked = !this.locked;
     const before = this.scale;
-    this.scale = clampToCrop(this.scale, this.locked, this.crop);
+    const after = clampToCrop(this.scale, !this.locked, this.crop);
+    const changes = after.x !== before.x || after.y !== before.y;
+    // Only re-locking with different X and Y changes the scale; that alone needs permission.
+    if (changes && !this.allowChange()) return;
+    this.locked = !this.locked;
+    this.scale = after;
     this.sync();
-    if (this.scale.x !== before.x || this.scale.y !== before.y) this.onChange(true);
+    if (changes) this.onChange(true);
   }
 
   private nudge(dx: number, dy: number) {

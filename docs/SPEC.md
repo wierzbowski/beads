@@ -150,7 +150,7 @@ Shown above the editor, only for Image Import.
 - Manual edits are merges, colour adjustments and painted beads. Label and pattern name changes are not: they are not undone by Cofnij and survive a rebuild as before (labels by exact colour).
 - **Cofnij** (and Ctrl+Z when no text field is focused) undoes the last manual edit, one at a time. Disabled when there is nothing to undo.
 - Rotating or flipping clears the undo history; the edits themselves stay in the pattern.
-- A rebuild (colour count, scale or crop) discards manual edits and the undo history (ADR-0006). When there are manual edits, starting to change one of those controls (dragging the **Liczba kolorów** or scale sliders, resizing or moving the crop, a nudge button, a number field) first asks; panning or zooming the photo view does not. The question is **Zmiana usunie ręczne poprawki. Kontynuować?**; Anuluj puts the control back.
+- A rebuild (colour count, scale or crop) discards manual edits and the undo history (ADR-0006). When there are manual edits, starting to change one of those controls (dragging the **Liczba kolorów** or scale sliders, resizing or moving the crop, a nudge button, re-locking 🔗 when X and Y differ) first asks; a scale number field asks when its new value is committed. Panning or zooming the photo view does not ask. The question is **Zmiana usunie ręczne poprawki. Kontynuować?**; Anuluj puts the control back.
 
 ### Output
 - **Udostępnij**: `navigator.share` with the pattern name and link (opens the Android share sheet, e.g. WhatsApp). Falls back to copying.

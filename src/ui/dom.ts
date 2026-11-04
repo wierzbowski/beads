@@ -84,6 +84,30 @@ export function confirmDialog(message: string, confirmLabel: string, danger = fa
   );
 }
 
+/**
+ * Stops a control from changing unless `allow()` says yes: inputs are blocked on press and key, buttons on click.
+ * `allow` decides synchronously; it may start an async confirmation, after which the user repeats the action.
+ */
+export function guardControl(el: HTMLInputElement | HTMLButtonElement, allow: () => boolean) {
+  const block = (e: Event) => {
+    // Moving focus and shortcuts don't change the value.
+    if (e instanceof KeyboardEvent && (['Tab', 'Shift', 'Escape'].includes(e.key) || e.ctrlKey || e.metaKey || e.altKey)) {
+      return;
+    }
+    if (allow()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.type === 'pointerdown') {
+      // A range input starts dragging on press; disabling it for the press keeps the thumb where it is.
+      const wasDisabled = el.disabled;
+      el.disabled = true;
+      requestAnimationFrame(() => (el.disabled = wasDisabled));
+    }
+  };
+  const events = el instanceof HTMLButtonElement ? ['click'] : ['pointerdown', 'keydown'];
+  for (const type of events) el.addEventListener(type, block, { capture: true });
+}
+
 let toastTimer: number | undefined;
 
 export function toast(message: string) {
