@@ -137,6 +137,16 @@ export function withoutUnusedColours(pattern: Pattern): Pattern {
   };
 }
 
+/** One opaque RGBA pixel per bead, row-major from the top, as the pattern is currently oriented. */
+export function patternRgba(pattern: Pattern): Uint8ClampedArray<ArrayBuffer> {
+  const rgba = new Uint8ClampedArray(pattern.beads.length * 4);
+  pattern.beads.forEach((c, i) => {
+    const { r, g, b } = pattern.palette[c].rgb;
+    rgba.set([r, g, b, 255], i * 4);
+  });
+  return rgba;
+}
+
 export function rotateClockwise(pattern: Pattern): Pattern {
   const { width, height } = pattern;
   const beads = new Array<number>(width * height);

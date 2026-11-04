@@ -10,6 +10,7 @@ import {
   mergeColour,
   paintBead,
   type Pattern,
+  patternRgba,
   type Rgb,
   rotateClockwise,
   setColourRgb,
@@ -516,19 +517,21 @@ export function renderCreator(root: HTMLElement): () => void {
   const linkOutput = h('input', { class: 'input link-output', readOnly: true, onfocus: () => linkOutput.select() });
   const shareButton = h('button', { class: 'btn btn-primary', onclick: onShare }, 'Udostępnij');
   const copyButton = h('button', { class: 'btn', onclick: onCopy }, 'Kopiuj link');
-  const previewButton = h('button', { class: 'btn', onclick: () => link && window.open(link, '_blank') }, 'Otwórz podgląd');
+  const pngButton = h('button', { class: 'btn', onclick: onDownloadPng }, 'Pobierz PNG');
   // Writes src/gallery.ts through the dev server, so it only exists under `pnpm dev` (ADR-0005).
   const galleryAdder = import.meta.env.DEV ? createGalleryAdder() : null;
 
   function shareCard(disabled: boolean) {
-    for (const b of [shareButton, copyButton, previewButton]) b.disabled = disabled || !link;
+    for (const b of [shareButton, copyButton]) b.disabled = disabled || !link;
+    // The bitmap needs no link, so it is available even while the pattern is over the link limits.
+    pngButton.disabled = !pattern;
     if (disabled) galleryAdder?.setLink(null, null);
     linkOutput.hidden = disabled;
     return h(
       'section',
       { class: 'card' },
       h('h2', {}, 'Udostępnij'),
-      h('div', { class: 'row' }, shareButton, copyButton, previewButton, galleryAdder?.button),
+      h('div', { class: 'row' }, shareButton, copyButton, pngButton, galleryAdder?.button),
       linkOutput,
       galleryAdder?.panel,
     );
@@ -547,7 +550,7 @@ export function renderCreator(root: HTMLElement): () => void {
     if (request !== linkRequest) return;
     link = patternLinkUrl(location.origin + location.pathname, payload);
     linkOutput.value = link;
-    for (const b of [shareButton, copyButton, previewButton]) b.disabled = false;
+    for (const b of [shareButton, copyButton]) b.disabled = false;
     galleryAdder?.setLink(p, payload);
   }
 
@@ -571,6 +574,21 @@ export function renderCreator(root: HTMLElement): () => void {
       linkOutput.focus();
       toast('Skopiuj link z pola poniżej');
     }
+  }
+
+  /** Downloads the pattern as shown, one pixel per bead. */
+  function onDownloadPng() {
+    if (!pattern) return;
+    const { width, height } = pattern;
+    const canvas = h('canvas', { width, height });
+    canvas.getContext('2d')!.putImageData(new ImageData(patternRgba(pattern), width, height), 0, 0);
+    const name = pattern.name.replace(/[\\/:*?"<>|]/g, '').trim() || 'wzor';
+    canvas.toBlob((blob) => {
+      if (!blob) return toast('Nie udało się utworzyć obrazu');
+      const url = URL.createObjectURL(blob);
+      h('a', { href: url, download: `${name}.png` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }, 'image/png');
   }
 
   /** Esc deselects; Ctrl+Z undoes a manual edit unless a text field has focus. Dialogs handle their own keys. */

@@ -5,6 +5,7 @@
  * Keep names non-numeric: JavaScript puts number-like keys (e.g. "2024") before all others.
  */
 export const galleryPatterns: Record<string, string> = {
+  kwiaty_2_63: 'AZXRP2vqUBgG8CeaK0mpEOMXuISTSzoIpXBdayFDji7BpQW5t1UqJRgVWqFN6RDP5ughyO0mpR9AHDJ1sFQHt96x5MNY8qcfoPt5fs_7vgdlHBd2ux0KHae9YR7-_IM8cLodp3vTc_DrFPLVdXvQHg1vvfvX_9jrbNj6seeMBt784S_2-sMbZ_24eRl4y7vfKNxv2HDkQerdOu2Rd34EQOI2RGpoLUFSinxaWeh-dXtSXc3O8n2x4coXxWVTXyhjfBgaraFE5jmqvP0gPsRGf2mDMMKpQSaWVifzKeHMIozMtjVAUKP4GZnui9TARIdS5ExfKLGvRrmzfB_lxLfNcJX4LSHxSZBPg8WlDcAMqUGYpVH958TgzHxOG31BjdwAsX_YtGIfZuKP8XGQ-G5QduWuX303w9UMkZ7tyEgAQa1_BWGGkY6cpdF4-ICRp7qsZo2xj1Jl0bSQo8rK5L7EbSEdVcq7QSk517tQTXyx4UrZjrGv0dphGox0AGLjMj0Ob0p8YpB61ohSJdzWkF31-9_xCQ',
   truskawka_6:
     'AWNgY4hl_vPjPwNbUmbi0abKBWziDHzJmam5efnJValF5fl5lUb-Rgy8EKGqzNSc_LxKBu6SotLi7MTy7MR4MwYoaBBjjBAFMUJUHaYwMTBwMCaINgYwMDCwOoVwOijQRQEQAAA',
   jamnik:

@@ -7,6 +7,7 @@ import {
   flipVertical,
   mergeColour,
   paintBead,
+  patternRgba,
   rotateClockwise,
   rowBeads,
   rowHint,
@@ -128,6 +129,17 @@ describe('manual edits', () => {
     expect(shared.palette.map((c) => c.label)).toEqual(['R', 'B']);
     expect(rowsOf(shared)).toEqual(['RRRRB', 'BBBBB', 'RRRRB']);
     expect(withoutUnusedColours(pattern)).toBe(pattern);
+  });
+});
+
+describe('bitmap', () => {
+  it('has one opaque pixel per bead, row-major from the top', () => {
+    const rgba = patternRgba(pattern);
+    expect(rgba).toHaveLength(5 * 3 * 4);
+    pattern.beads.forEach((c, i) => {
+      const { r, g, b } = pattern.palette[c].rgb;
+      expect([...rgba.subarray(i * 4, i * 4 + 4)]).toEqual([r, g, b, 255]);
+    });
   });
 });
 
