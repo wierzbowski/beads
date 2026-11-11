@@ -573,6 +573,10 @@ h2 {
   opacity: 0.55;
 }
 
+.next-hint:empty {
+  display: none;
+}
+
 .next-hint .chip {
   font-size: 0.75rem;
   padding: 0.1rem 0.4rem 0.1rem 0.3rem;

@@ -204,7 +204,7 @@ Only under `pnpm dev` (ADR-0005); absent from the production build. Disabled unt
 ### Row hint
 - `Rząd N / total (liczba kolumn: W)` for the current row, where W is the pattern width.
 - Ordered runs as chips: swatch + count + colour letter + label in brackets, in the reading direction, e.g. `3× A (jasnoróżowy)`.
-- Below it, a smaller greyed preview of the next row's hint (if any).
+- Below it, a smaller greyed preview of the next row's hint (if any), unless hidden from the ⋯ menu.
 
 ### Controls
 - **Następny rządek**: marks the current row done.
@@ -213,6 +213,7 @@ Only under `pnpm dev` (ADR-0005); absent from the production build. Disabled unt
 - **Cofnij**: moves progress back one row. Disabled at 0.
 - **⋯ menu**:
   - **Kierunek czytania**: toggles left→right / right→left for this pattern.
+  - **Pokaż / Ukryj podgląd następnego rzędu**: toggles the next-row preview. Device-wide preference saved in `localStorage` (shown by default); not part of the link.
   - **Podsumowanie kolorów**: per bead colour (swatch, colour letter, label), beads needed in total and beads remaining.
   - **Resetuj postęp**: sets progress to 0 after confirmation.
 

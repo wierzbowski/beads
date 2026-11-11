@@ -16,6 +16,7 @@ import { PatternViewer } from './patternViewer';
 import { runChip, swatch } from './swatch';
 
 const DOUBLE_TAP_GUARD_MS = 600;
+const SHOW_NEXT_ROW_KEY = 'beads-pref:showNextRow';
 
 const percentFormat = new Intl.NumberFormat('pl-PL', {
   style: 'percent',
@@ -32,6 +33,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
   const store = localStateStore(window.localStorage);
   const fp = fingerprint(pattern);
   let state = resolveState(linkState, store.load(fp), total);
+  let showNextRow = loadShowNextRow();
   let lastDoneTap = 0;
   let urlUpdate = 0;
 
@@ -106,7 +108,7 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
       );
       hintChips.replaceChildren(...rowHint(pattern, current, state.direction).map((r) => runChip(r, pattern.palette)));
       nextHint.replaceChildren(
-        ...(current < total
+        ...(showNextRow && current < total
           ? [
               h('span', { class: 'next-label' }, 'Następny:'),
               ...rowHint(pattern, current + 1, state.direction).map((r) => runChip(r, pattern.palette)),
@@ -159,10 +161,11 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
   }
 
   async function openMenu() {
-    const choice = await showDialog<'direction' | 'totals' | 'reset' | null>(
+    const choice = await showDialog<'direction' | 'nextRow' | 'totals' | 'reset' | null>(
       [h('h2', {}, 'Opcje')],
       [
         { label: `Kierunek czytania: ${DIRECTION_LABEL[state.direction]} — zmień`, value: 'direction' },
+        { label: showNextRow ? 'Ukryj podgląd następnego rzędu' : 'Pokaż podgląd następnego rzędu', value: 'nextRow' },
         { label: 'Podsumowanie kolorów', value: 'totals' },
         { label: 'Resetuj postęp', value: 'reset', danger: true },
         { label: 'Zamknij', value: null },
@@ -171,6 +174,10 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
     );
     if (choice === 'direction') {
       update(toggleDirection(state));
+    } else if (choice === 'nextRow') {
+      showNextRow = !showNextRow;
+      saveShowNextRow(showNextRow);
+      render();
     } else if (choice === 'totals') {
       showTotals();
     } else if (choice === 'reset') {
@@ -220,6 +227,23 @@ export function renderCrafting(root: HTMLElement, { pattern, state: linkState }:
     viewer.destroy();
     screen.remove();
   };
+}
+
+/** Device-wide preference, shared by all patterns; defaults to shown. */
+function loadShowNextRow(): boolean {
+  try {
+    return window.localStorage.getItem(SHOW_NEXT_ROW_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function saveShowNextRow(show: boolean) {
+  try {
+    window.localStorage.setItem(SHOW_NEXT_ROW_KEY, show ? '1' : '0');
+  } catch {
+    // Storage may be unavailable (private mode, quota); the preference lasts for this session only.
+  }
 }
 
 /** Keeps the screen on while the page is visible; silently does nothing where unsupported. */
