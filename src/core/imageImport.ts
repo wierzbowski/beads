@@ -26,8 +26,11 @@ export interface Scale {
 export type Axis = keyof Scale;
 
 export const MIN_SCALE = 1;
+/** Steps for the arrow keys, the sliders and the default scale. */
 const STEPS_PER_PIXEL = 20;
 export const SCALE_STEP = 1 / STEPS_PER_PIXEL;
+/** Finest scale kept, for a typed value such as 9.12. */
+const PRECISION_PER_PIXEL = 100;
 /** Longer side above which a source image is downscaled on load, to keep memory reasonable on a phone. */
 export const MAX_WORKING_SIDE = 4000;
 
@@ -46,12 +49,25 @@ export function maxScale(axis: Axis, locked: boolean, crop: Size): number {
   return Math.max(MIN_SCALE, side);
 }
 
-function clampScale(value: number, max: number): number {
-  const stepped = Math.round(value * STEPS_PER_PIXEL) / STEPS_PER_PIXEL;
+function clampScale(value: number, max: number, perPixel = PRECISION_PER_PIXEL): number {
+  const stepped = Math.round(value * perPixel) / perPixel;
   return Math.min(max, Math.max(MIN_SCALE, stepped));
 }
 
-/** Sets one axis of the scale, in steps of SCALE_STEP; while locked, both axes take the value. */
+/** The value rounded to a whole SCALE_STEP. */
+export function snapToStep(value: number): number {
+  return Math.round(value * STEPS_PER_PIXEL) / STEPS_PER_PIXEL;
+}
+
+/** The next whole SCALE_STEP above (direction 1) or below (-1) the value, as a number field's arrow keys step. */
+export function stepScale(value: number, direction: 1 | -1): number {
+  const steps = value * STEPS_PER_PIXEL;
+  // The epsilon keeps a value already on a step, such as 2.2, from counting as just below or above it.
+  const next = direction > 0 ? Math.floor(steps + 1e-6) + 1 : Math.ceil(steps - 1e-6) - 1;
+  return next / STEPS_PER_PIXEL;
+}
+
+/** Sets one axis of the scale, to 0.01; while locked, both axes take the value. */
 export function adjustScale(scale: Scale, axis: Axis, value: number, locked: boolean, crop: Size): Scale {
   const v = clampScale(value, maxScale(axis, locked, crop));
   return locked ? { x: v, y: v } : { ...scale, [axis]: v };
@@ -72,9 +88,9 @@ export function defaultScale(crop: Size): number {
   // floor(side / s) <= limit exactly when s > side / (limit + 1); start from the looser orientation and step up.
   const upright = Math.max(crop.width / (MAX_WIDTH + 1), crop.height / (MAX_HEIGHT + 1));
   const sideways = Math.max(crop.width / (MAX_HEIGHT + 1), crop.height / (MAX_WIDTH + 1));
-  let s = clampScale(Math.min(upright, sideways), max);
+  let s = clampScale(Math.min(upright, sideways), max, STEPS_PER_PIXEL);
   while (s < max && !fitsSomeOrientation(blockGridSize(crop, { x: s, y: s }))) {
-    s = clampScale(s + SCALE_STEP, max);
+    s = clampScale(s + SCALE_STEP, max, STEPS_PER_PIXEL);
   }
   return s;
 }

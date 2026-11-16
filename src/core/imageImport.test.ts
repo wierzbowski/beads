@@ -8,6 +8,8 @@ import {
   nudgeCrop,
   patternFromBlocks,
   type Pixels,
+  snapToStep,
+  stepScale,
 } from './imageImport';
 import type { Pattern } from './pattern';
 
@@ -136,8 +138,21 @@ describe('scale', () => {
     expect(adjustScale({ x: 2, y: 2 }, 'y', 10, false, crop)).toEqual({ x: 2, y: 10 });
   });
 
-  it('rounds to steps of 0.05', () => {
-    expect(adjustScale({ x: 2, y: 2 }, 'x', 10.33, true, crop)).toEqual({ x: 10.35, y: 10.35 });
+  it('rounds to 0.01', () => {
+    expect(adjustScale({ x: 2, y: 2 }, 'x', 10.337, true, crop)).toEqual({ x: 10.34, y: 10.34 });
+    expect(clampToCrop({ x: 9.12, y: 3.07 }, false, crop)).toEqual({ x: 9.12, y: 3.07 });
+  });
+
+  it('snaps to steps of 0.05', () => {
+    expect(snapToStep(10.33)).toBe(10.35);
+    expect(snapToStep(9.12)).toBe(9.1);
+  });
+
+  it('steps to the next 0.05 above or below', () => {
+    expect(stepScale(2.2, 1)).toBe(2.25);
+    expect(stepScale(2.2, -1)).toBe(2.15);
+    expect(stepScale(9.12, 1)).toBe(9.15);
+    expect(stepScale(9.12, -1)).toBe(9.1);
   });
 
   it('keeps the scale between 1 and one block across the crop', () => {

@@ -13,6 +13,8 @@ import {
   type Pixels,
   type Scale,
   SCALE_STEP,
+  snapToStep,
+  stepScale,
 } from '../core/imageImport';
 import { fitsSomeOrientation, MAX_HEIGHT, MAX_WIDTH, type Pattern } from '../core/pattern';
 import { CropView } from './cropView';
@@ -20,6 +22,13 @@ import { guardControl, h } from './dom';
 
 /** Slider positions; the slider is logarithmic so small scales stay precise on a large photo. */
 const SLIDER_STEPS = 1000;
+
+const NUDGE_KEYS: Partial<Record<string, [number, number]>> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
 
 /** A source image loaded for Image Import. Sizes are in original pixels; `pixels` may be a downscaled copy. */
 export interface Photo {
@@ -137,9 +146,11 @@ export class ScaleSection {
       this.onChange(done);
     }, allowChange);
     this.sync();
+    document.addEventListener('keydown', this.onKeyDown);
   }
 
   destroy() {
+    document.removeEventListener('keydown', this.onKeyDown);
     this.cropView.destroy();
     this.photo.bitmap.close();
     this.element.remove();
@@ -159,7 +170,8 @@ export class ScaleSection {
       max: String(SLIDER_STEPS),
       step: '1',
       ariaLabel: axis === 'x' ? 'Skala w poziomie' : 'Skala w pionie',
-      oninput: () => this.setScale(axis, sliderToScale(Number(slider.value), this.maxScale(axis)), false, slider),
+      oninput: () =>
+        this.setScale(axis, snapToStep(sliderToScale(Number(slider.value), this.maxScale(axis))), false, slider),
       onchange: () => this.onChange(true),
     });
     const number = h('input', {
@@ -206,6 +218,30 @@ export class ScaleSection {
     this.sync();
     if (changes) this.onChange(true);
   }
+
+  /**
+   * Arrow keys nudge the grid like the buttons; with Shift, left/right and up/down shrink/grow the X and Y
+   * scale by a step, unlocking the scales first. Ignored while a form field (which uses them itself) or a dialog has focus.
+   */
+  private onKeyDown = (e: KeyboardEvent) => {
+    const step = NUDGE_KEYS[e.key];
+    if (!step || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+    const target = e.target;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+    e.preventDefault();
+    if (!this.allowChange()) return;
+    if (!e.shiftKey) return this.nudge(step[0], step[1]);
+    const [axis, direction] = step[0] ? (['x', step[0]] as const) : (['y', step[1]] as const);
+    if (this.locked) this.toggleLock();
+    this.setScale(axis, stepScale(this.scale[axis], direction as 1 | -1), true);
+  };
 
   private nudge(dx: number, dy: number) {
     const image = { width: this.photo.width, height: this.photo.height };

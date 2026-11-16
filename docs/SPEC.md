@@ -94,11 +94,12 @@ Shown above the editor, only for Image Import.
   - Dragging a crop corner or edge handle resizes the crop; dragging inside the crop moves it (with the grid); dragging outside pans; pinch or mouse wheel zooms.
   - Two fingers or the right mouse button always pan. While the crop covers the whole image, dragging inside it pans too, since the crop cannot move.
   - Handles keep a constant on-screen size at any zoom.
-  - Nudge buttons move the crop by ±1 px for fine alignment.
+  - Nudge buttons move the crop by ±1 px for fine alignment. The arrow keys do the same unless a form field (which uses them itself) has focus.
   - By default the crop covers the whole image.
 - **Scale**: two sliders, X and Y, each with a number field for an exact value.
-  - Fractional, step 0.05, from 1 up to the crop's side (one bead across). The sliders are logarithmic, so small scales stay precise on a large photo.
+  - Fractional, from 1 up to the crop's side (one bead across). The sliders and the number fields' arrow keys move in steps of 0.05; a typed value keeps 0.01 (e.g. 9.12). The sliders are logarithmic, so small scales stay precise on a large photo.
   - Locked together by default with a 🔗 toggle: moving either moves both. Unlocking keeps the current values. Re-locking sets Y to X.
+  - Shift + ←/→ shrinks/grows the X scale and Shift + ↑/↓ the Y scale by a 0.05 step, unlocking the scales first (unless a form field has focus).
   - Default: the smallest locked scale at which the result fits 50 × 500 in some orientation.
 - Result size shown live, e.g. `11 × 67 koralików`, in red while over the limits even rotated. The editor is then hidden until the scale is raised, which also keeps tiny scales on a large photo from building a huge pattern.
 - On a phone the section is stacked: photo view (about half the screen height), sliders and result size, nudge buttons; the pattern preview follows in the editor. On desktop the photo view and the pattern preview sit side by side.
